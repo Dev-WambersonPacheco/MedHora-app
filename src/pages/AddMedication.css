@@ -1,0 +1,76 @@
+.add-med-page {
+  background: linear-gradient(135deg, #f8f9ff 0%, #e8f5e8 100%);
+}
+
+.add-med-form {
+  background: white;
+  padding: 32px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  margin-top: 16px;
+}
+
+.add-med-form .input-group {
+  margin-bottom: 28px;
+}
+
+.add-med-form label {
+  display: block;
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.add-med-form input {
+  width: 100%;
+  padding: 24px;
+  font-size: 20px;
+  border: 3px solid #e8e8e8;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.add-med-form input:focus {
+  border-color: #9c27b0;
+  box-shadow: 0 0 0 6px rgba(156, 39, 176, 0.1);
+  transform: translateY(-2px);
+}
+
+.add-med-form input:disabled {
+  background: #f8f9fa;
+  cursor: not-allowed;
+}
+
+.add-med-form .btn-primary {
+  width: 100%;
+  padding: 24px;
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%);
+  color: white;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 16px;
+  transition: all 0.3s ease;
+}
+
+.add-med-form .btn-primary:hover:not(:disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(156, 39, 176, 0.4);
+}
+
+.add-med-form .btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 480px) {
+  .add-med-form {
+    padding: 24px;
+    margin: 0 8px;
+  }
+}

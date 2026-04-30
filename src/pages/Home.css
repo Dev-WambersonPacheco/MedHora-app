@@ -1,0 +1,184 @@
+.home-page {
+  background: linear-gradient(135deg, #e8f5e8 0%, #f0f8ff 100%);
+}
+
+.welcome-section {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.welcome-section h1 {
+  font-size: 28px;
+  color: #0fa68c;
+  font-weight: 400;
+  margin-bottom: 4px;
+  letter-spacing: 2px;
+}
+
+.welcome-section h2 {
+  font-size: 36px;
+  color: #0fa68c;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.pending-meds {
+  margin-bottom: 32px;
+}
+
+.pending-card {
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  color: white;
+  padding: 24px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+}
+
+.pending-icon {
+  font-size: 48px;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #ff6b6b, #ffa500);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
+}
+
+.pending-info {
+  flex: 1;
+}
+
+.pending-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.pending-subtitle {
+  font-size: 14px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.pending-count {
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffa500;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.btn-add-med {
+  display: block;
+  background: linear-gradient(135deg, #00c851 0%, #00b140 100%);
+  color: white;
+  padding: 28px;
+  border-radius: 24px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 15px 35px rgba(0, 200, 81, 0.4);
+  transition: all 0.3s ease;
+}
+
+.btn-add-med:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 25px 50px rgba(0, 200, 81, 0.5);
+}
+
+.btn-add-med span {
+  font-size: 36px;
+  font-weight: 300;
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-add-med .btn-title {
+  font-size: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-add-med .btn-subtitle {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.row-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+.btn-secondary-large {
+  flex: 1;
+  background: linear-gradient(135deg, #4285f4 0%, #5a95f5 100%);
+  color: white;
+  padding: 24px;
+  border-radius: 20px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 10px 25px rgba(66, 133, 244, 0.4);
+  transition: all 0.2s ease;
+}
+
+.btn-secondary-large:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(66, 133, 244, 0.5);
+}
+
+.btn-reminder {
+  background: linear-gradient(135deg, #4285f4 0%, #5a95f5 100%);
+  color: white;
+  padding: 24px;
+  border-radius: 20px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 15px 35px rgba(66, 133, 244, 0.4);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn-reminder:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 25px 50px rgba(66, 133, 244, 0.5);
+}
+
+@media (max-width: 480px) {
+  .pending-card {
+    padding: 20px;
+  }
+  
+  .btn-add-med {
+    padding: 24px;
+  }
+}

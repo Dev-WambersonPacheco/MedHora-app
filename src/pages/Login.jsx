@@ -1,0 +1,118 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext.jsx'
+import Header from '../components/Header.jsx'
+import './Login.css'
+
+function Login() {
+  const [cpf, setCpf] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
+  const { login } = useAuth()
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const result = await login(cpf, password)
+    setLoading(false)
+
+    if (result.success) {
+      navigate('/')
+    } else {
+      setError(result.error)
+    }
+  }
+
+  const formatCpf = (value) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+      .slice(0, 14)
+  }
+
+  return (
+    <div className="login-page">
+      <Header title="MedHora" showBack={false} />
+      <div className="page-content">
+        <div className="logo-container">
+          <div className="logo">
+            <svg viewBox="0 0 200 200" width="120" height="120">
+              <defs>
+                <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#1566a8"/>
+                  <stop offset="100%" stop-color="#4cc47a"/>
+                </linearGradient>
+              </defs>
+              <circle cx="100" cy="100" r="90" fill="white" stroke="url(#g1)" stroke-width="10"/>
+              <g transform="translate(100 100) rotate(-45)">
+                <rect x="-35" y="-18" width="70" height="36" rx="18" fill="#1566a8"/>
+                <rect x="0" y="-18" width="35" height="36" rx="18" fill="#4cc47a"/>
+              </g>
+              <circle cx="100" cy="100" r="55" fill="none" stroke="url(#g1)" stroke-width="6"/>
+              <line x1="100" y1="60" x2="100" y2="100" stroke="#1566a8" stroke-width="5" stroke-linecap="round"/>
+              <line x1="100" y1="100" x2="128" y2="115" stroke="#1566a8" stroke-width="5" stroke-linecap="round"/>
+              <circle cx="100" cy="100" r="5" fill="#1566a8"/>
+            </svg>
+          </div>
+          <h1>MedHora</h1>
+        </div>
+
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="input-group">
+            <label>Por favor, insira seu CPF:</label>
+            <input
+              type="text"
+              value={cpf}
+              onChange={(e) => setCpf(formatCpf(e.target.value))}
+              placeholder="000.000.000-00"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Por favor, digite sua senha:</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="******"
+              maxLength={6}
+              required
+              disabled={loading}
+            />
+            <small>A senha deve conter apenas dígitos.</small>
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          <button type="submit" className="btn-primary" disabled={loading}>
+            {loading ? 'Entrando...' : 'ENTRAR'}
+          </button>
+        </form>
+
+        <div className="login-actions">
+          <button className="btn-secondary" disabled={loading}>
+            👁️ Acessibilidade
+          </button>
+          <button 
+            type="button" 
+            className="btn-secondary" 
+            onClick={() => navigate('/criar-conta')}
+            disabled={loading}
+          >
+            + Criar Conta
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default Login

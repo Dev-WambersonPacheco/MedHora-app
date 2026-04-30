@@ -1,0 +1,138 @@
+.login-page {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+.logo-container {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.logo h1 {
+  font-size: 36px;
+  font-weight: 300;
+  background: linear-gradient(135deg, #1566a8 0%, #4cc47a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-top: 16px;
+}
+
+.login-form {
+  background: white;
+  padding: 32px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.input-group {
+  margin-bottom: 24px;
+}
+
+.input-group label {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 20px;
+  font-size: 20px;
+  border: 2px solid #e5e5e5;
+  border-radius: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.input-group input:focus {
+  border-color: #9c27b0;
+  box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
+}
+
+.input-group input:disabled {
+  background: #f8f9fa;
+  cursor: not-allowed;
+}
+
+.input-group small {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 20px;
+  font-size: 20px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%);
+  color: white;
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(156, 39, 176, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #666;
+  border: 2px solid #e5e5e5;
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: white;
+  border-color: #9c27b0;
+  color: #9c27b0;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .login-form {
+    padding: 24px;
+    margin: 0 8px;
+  }
+}

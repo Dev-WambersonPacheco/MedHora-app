@@ -1,0 +1,100 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f0f0;
+  color: #222;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 450px;
+  min-height: 100vh;
+  background: #ffffff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 90px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.app-container.no-nav {
+  padding-bottom: 0;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  outline: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.page-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.page-title {
+  font-size: 34px;
+  font-weight: 400;
+  color: #0fa68c;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+}
+
+.back-btn {
+  background: transparent;
+  border: none;
+  color: #4285f4;
+  padding: 0;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.screen-header {
+  padding: 20px 20px 16px 20px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fff;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}

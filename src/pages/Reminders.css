@@ -1,0 +1,105 @@
+.reminders-page {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.reminders-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px;
+}
+
+.reminder-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.reminder-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--card-color);
+}
+
+.reminder-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.25);
+}
+
+.reminder-icon {
+  font-size: 56px;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, var(--card-color), color-mix(in srgb, var(--card-color) 70%, transparent));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 15px 35px color-mix(in srgb, var(--card-color) 30%, transparent);
+  flex-shrink: 0;
+}
+
+.reminder-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.reminder-desc {
+  font-size: 16px;
+  color: #666;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 200px;
+}
+
+.reminder-frequency {
+  background: var(--card-color);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 480px) {
+  .reminders-grid {
+    gap: 16px;
+    padding: 4px;
+  }
+  
+  .reminder-card {
+    padding: 24px 20px;
+    gap: 12px;
+  }
+  
+  .reminder-icon {
+    width: 80px;
+    height: 80px;
+    font-size: 44px;
+  }
+  
+  .reminder-title {
+    font-size: 22px;
+  }
+}
