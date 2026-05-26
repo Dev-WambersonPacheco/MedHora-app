@@ -85,6 +85,8 @@ function Login() {
             <label>Por favor, digite sua senha:</label>
             <input
               type="password"
+              inputMode="numeric"
+              pattern="\\d{1,6}"
               value={password}
               onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder="******"

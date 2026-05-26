@@ -84,6 +84,8 @@ function CreateAccount() {
             <label>Senha (apenas números):</label>
             <input
               type="password"
+              inputMode="numeric"
+              pattern="\\d{1,6}"
               value={form.password}
               onChange={(e) => setForm({...form, password: e.target.value.replace(/[^0-9]/g, '')})}
               placeholder="123456"
