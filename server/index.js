@@ -14,6 +14,10 @@ const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 
 const PROFILE_ROLES = new Set(['idoso', 'cuidador'])
 const activeSessions = new Map()
 const passwordRecoveryCodes = new Map()
+const SMS_PROVIDER = String(process.env.SMS_PROVIDER || 'twilio').toLowerCase()
+const TWILIO_ACCOUNT_SID = String(process.env.TWILIO_ACCOUNT_SID || '')
+const TWILIO_AUTH_TOKEN = String(process.env.TWILIO_AUTH_TOKEN || '')
+const TWILIO_PHONE_NUMBER = String(process.env.TWILIO_PHONE_NUMBER || '')
 
 const corsOrigin = process.env.CORS_ORIGIN
 app.use(cors(corsOrigin ? { origin: corsOrigin } : undefined))
@@ -21,6 +25,19 @@ app.use(express.json())
 
 function cleanCpf(cpf = '') {
   return String(cpf).replace(/\D/g, '')
+}
+
+function cleanPhone(phone = '') {
+  return String(phone).replace(/\D/g, '')
+}
+
+function normalizePhoneForSms(phone = '') {
+  const digits = cleanPhone(phone)
+  if (!digits) return ''
+  if (digits.startsWith('55') && digits.length >= 12) return `+${digits}`
+  if (digits.length === 10 || digits.length === 11) return `+55${digits}`
+  if (String(phone).trim().startsWith('+')) return String(phone).trim()
+  return `+${digits}`
 }
 
 function toPublicUser(userRow) {
@@ -58,10 +75,41 @@ function generateRecoveryCode() {
 }
 
 function maskPhone(phone = '') {
-  const digits = cleanCpf(phone).slice(0, 11)
+  const digits = cleanPhone(phone).slice(0, 11)
   if (digits.length < 8) return 'telefone cadastrado'
   const lastFour = digits.slice(-4)
   return `(**) *****-${lastFour}`
+}
+
+async function sendSms({ to, body }) {
+  if (SMS_PROVIDER !== 'twilio') {
+    throw new Error('Provedor de SMS nao configurado. Defina SMS_PROVIDER=twilio para enviar SMS.')
+  }
+
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+    throw new Error('Configurações do Twilio ausentes. Defina TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_PHONE_NUMBER.')
+  }
+
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      To: normalizePhoneForSms(to),
+      From: TWILIO_PHONE_NUMBER,
+      Body: body
+    }).toString()
+  })
+
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) {
+    const message = payload?.message || payload?.error_message || 'Falha ao enviar SMS.'
+    throw new Error(message)
+  }
+
+  return payload
 }
 
 function cleanupRecoveryCodes() {
@@ -761,14 +809,14 @@ app.post('/api/auth/recovery/request', async (req, res) => {
     expiresAt
   })
 
-  if (process.env.NODE_ENV !== 'test') {
-    console.log(`[SMS recovery] CPF ${cpf} -> ${maskPhone(user.phone)} | code: ${code}`)
-  }
+  await sendSms({
+    to: user.phone,
+    body: `MedHora: seu código de recuperação é ${code}. Ele expira em 10 minutos.`
+  })
 
   return res.json({
     message: 'Código de recuperação enviado por SMS.',
-    phoneHint: maskPhone(user.phone),
-    ...(process.env.NODE_ENV !== 'production' ? { debugCode: code } : {})
+    phoneHint: maskPhone(user.phone)
   })
 })
 
@@ -822,10 +870,11 @@ app.post('/api/auth/register', async (req, res) => {
   const cpf = cleanCpf(req.body?.cpf)
   const password = String(req.body?.password || '')
   const name = String(req.body?.name || '').trim().toUpperCase()
+  const phone = String(req.body?.phone || '').trim()
   const role = normalizeRole(req.body?.role)
 
-  if (!cpf || !password || !name) {
-    return res.status(400).json({ error: 'Nome, CPF e senha sao obrigatorios.' })
+  if (!cpf || !password || !name || !phone) {
+    return res.status(400).json({ error: 'Nome, CPF, telefone e senha sao obrigatorios.' })
   }
 
   // valida formato da senha: somente dígitos e até 6 caracteres
@@ -846,15 +895,15 @@ app.post('/api/auth/register', async (req, res) => {
   const inviteCode = generateInviteCode()
 
   await query(
-    `INSERT INTO users (cpf, password, name, role, invite_code)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [cpf, hashedPassword, name, role, inviteCode]
+    `INSERT INTO users (cpf, password, name, phone, role, invite_code)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [cpf, hashedPassword, name, phone, role, inviteCode]
   )
   await query(
     `UPDATE users
-     SET role = $2, invite_code = $3
+     SET phone = $2, role = $3, invite_code = $4
      WHERE cpf = $1`,
-    [cpf, role, inviteCode]
+    [cpf, phone, role, inviteCode]
   )
 
   const userResult = await query(
@@ -873,6 +922,10 @@ app.patch('/api/users/:cpf', async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim() : null
   const hasCaregiver = Object.prototype.hasOwnProperty.call(req.body || {}, 'caregiver')
   const caregiverPayload = hasCaregiver ? JSON.stringify(req.body.caregiver ?? null) : null
+
+  if (!phone) {
+    return res.status(400).json({ error: 'Telefone é obrigatório.' })
+  }
 
   const updated = await query(
     `UPDATE users

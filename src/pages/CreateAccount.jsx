@@ -9,6 +9,7 @@ function CreateAccount() {
   const [form, setForm] = useState({
     name: '',
     cpf: '',
+    phone: '',
     password: '',
     role: 'idoso'
   })
@@ -78,6 +79,19 @@ function CreateAccount() {
               required
               disabled={loading}
             />
+          </div>
+
+          <div className="input-group">
+            <label>Telefone para recuperação por SMS:</label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/[^0-9+()\s-]/g, '') })}
+              placeholder="(11) 99999-9999"
+              required
+              disabled={loading}
+            />
+            <small>Esse telefone será usado para recuperar a senha por SMS.</small>
           </div>
 
           <div className="input-group">

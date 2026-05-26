@@ -145,21 +145,19 @@ function Login() {
 
           {error && <div className="error">{error}</div>}
 
-          {error && (
-            <button
-              type="button"
-              className="btn-link-recovery"
-              onClick={() => {
-                setRecoveryCpf(cpf)
-                setRecoveryOpen(true)
-                setRecoveryError('')
-                setRecoveryMessage('')
-              }}
-              disabled={loading}
-            >
-              Recuperar senha por SMS
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-link-recovery"
+            onClick={() => {
+              setRecoveryCpf(cpf)
+              setRecoveryOpen(true)
+              setRecoveryError('')
+              setRecoveryMessage('')
+            }}
+            disabled={loading}
+          >
+            Esqueceu a senha? Recuperar por SMS
+          </button>
 
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Entrando...' : 'ENTRAR'}
@@ -170,6 +168,7 @@ function Login() {
           <section className="recovery-card" aria-live="polite">
             <h2>Recuperar senha por SMS</h2>
             <p>Informe o CPF. O código será enviado para o telefone cadastrado no perfil.</p>
+            <p className="recovery-note">Se o seu telefone não estiver atualizado, ajuste-o em Editar Perfil antes de continuar.</p>
 
             <form className="recovery-form" onSubmit={handleRequestRecovery}>
               <div className="input-group">

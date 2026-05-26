@@ -69,9 +69,12 @@ function EditProfile() {
             <input
               type="tel"
               value={form.phone}
-              onChange={(e) => setForm({...form, phone: e.target.value})}
+              onChange={(e) => setForm({...form, phone: e.target.value.replace(/[^0-9+()\s-]/g, '')})}
+              required
+              placeholder="(11) 99999-9999"
               disabled={loading}
             />
+            <small>Telefone obrigatório para recuperação por SMS.</small>
           </div>
 
           <div className="input-group">
