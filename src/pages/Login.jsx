@@ -94,7 +94,7 @@ function Login() {
               required
               disabled={loading}
             />
-            <small>A senha deve conter apenas dígitos.</small>
+            <small>Senha: apenas dígitos, máximo 6 caracteres.</small>
           </div>
 
           {error && <div className="error">{error}</div>}

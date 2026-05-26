@@ -81,7 +81,7 @@ function CreateAccount() {
           </div>
 
           <div className="input-group">
-            <label>Senha (apenas números):</label>
+            <label>Senha (apenas números, até 6 dígitos):</label>
             <input
               type="password"
               inputMode="numeric"
