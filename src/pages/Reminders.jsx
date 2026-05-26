@@ -165,7 +165,7 @@ function Routine() {
           <div className="routine-grid">
             <div className="input-group">
               <label>Frequência</label>
-              <select value={form.frequency} onChange={(e) => handleChange('frequency', e.target.value)}>
+              <select className="field-select" value={form.frequency} onChange={(e) => handleChange('frequency', e.target.value)}>
                 {FREQUENCIES.map((frequency) => (
                   <option key={frequency.value} value={frequency.value}>{frequency.label}</option>
                 ))}
@@ -185,6 +185,7 @@ function Routine() {
               <div className="input-group">
                 <label>Intervalo</label>
                 <select
+                  className="field-select"
                   value={form.repeatEveryHours}
                   onChange={(e) => handleChange('repeatEveryHours', e.target.value)}
                 >

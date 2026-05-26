@@ -296,7 +296,7 @@ function Caregiver() {
 
             <div className="input-group">
               <label>Prioridade</label>
-              <select value={form.priority} onChange={(e) => handleChange('priority', e.target.value)}>
+              <select className="field-select" value={form.priority} onChange={(e) => handleChange('priority', e.target.value)}>
                 {PRIORITIES.map((priority) => (
                   <option key={priority.value} value={priority.value}>{priority.label}</option>
                 ))}
