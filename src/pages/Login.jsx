@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
+import { api } from '../services/api.js'
 import './Login.css'
 import { formatCpf } from '../utils/cpf.js'
 
@@ -10,6 +11,13 @@ function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [recoveryOpen, setRecoveryOpen] = useState(false)
+  const [recoveryCpf, setRecoveryCpf] = useState('')
+  const [recoveryCode, setRecoveryCode] = useState('')
+  const [recoveryPassword, setRecoveryPassword] = useState('')
+  const [recoveryMessage, setRecoveryMessage] = useState('')
+  const [recoveryError, setRecoveryError] = useState('')
+  const [recoveryLoading, setRecoveryLoading] = useState(false)
   const navigate = useNavigate()
   const { login } = useAuth()
   const [a11yMode, setA11yMode] = useState(false)
@@ -35,7 +43,45 @@ function Login() {
     if (result.success) {
       navigate('/')
     } else {
-      setError(result.error)
+      setError(
+        result.error === 'CPF ou senha incorretos.'
+          ? 'CPF ou senha incorretos. Se esqueceu a senha, use Recuperar por SMS.'
+          : result.error
+      )
+    }
+  }
+
+  const handleRequestRecovery = async (e) => {
+    e.preventDefault()
+    setRecoveryError('')
+    setRecoveryMessage('')
+    setRecoveryLoading(true)
+
+    try {
+      const response = await api.requestPasswordRecovery(recoveryCpf)
+      setRecoveryMessage(`${response.message} Enviado para ${response.phoneHint}.`)
+    } catch (error) {
+      setRecoveryError(error.message || 'Nao foi possivel enviar o SMS de recuperacao.')
+    } finally {
+      setRecoveryLoading(false)
+    }
+  }
+
+  const handleConfirmRecovery = async (e) => {
+    e.preventDefault()
+    setRecoveryError('')
+    setRecoveryMessage('')
+    setRecoveryLoading(true)
+
+    try {
+      const response = await api.confirmPasswordRecovery(recoveryCpf, recoveryCode, recoveryPassword)
+      setRecoveryMessage(response.message || 'Senha redefinida com sucesso.')
+      setRecoveryCode('')
+      setRecoveryPassword('')
+    } catch (error) {
+      setRecoveryError(error.message || 'Nao foi possivel redefinir a senha.')
+    } finally {
+      setRecoveryLoading(false)
     }
   }
 
@@ -99,10 +145,83 @@ function Login() {
 
           {error && <div className="error">{error}</div>}
 
+          {error && (
+            <button
+              type="button"
+              className="btn-link-recovery"
+              onClick={() => {
+                setRecoveryCpf(cpf)
+                setRecoveryOpen(true)
+                setRecoveryError('')
+                setRecoveryMessage('')
+              }}
+              disabled={loading}
+            >
+              Recuperar senha por SMS
+            </button>
+          )}
+
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Entrando...' : 'ENTRAR'}
           </button>
         </form>
+
+        {recoveryOpen && (
+          <section className="recovery-card" aria-live="polite">
+            <h2>Recuperar senha por SMS</h2>
+            <p>Informe o CPF. O código será enviado para o telefone cadastrado no perfil.</p>
+
+            <form className="recovery-form" onSubmit={handleRequestRecovery}>
+              <div className="input-group">
+                <label>CPF</label>
+                <input
+                  type="text"
+                  value={recoveryCpf}
+                  onChange={(e) => setRecoveryCpf(formatCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  disabled={recoveryLoading}
+                />
+              </div>
+              <button type="submit" className="btn-secondary" disabled={recoveryLoading || !recoveryCpf.trim()}>
+                {recoveryLoading ? 'Enviando SMS...' : 'Enviar código por SMS'}
+              </button>
+            </form>
+
+            <form className="recovery-form recovery-confirm" onSubmit={handleConfirmRecovery}>
+              <div className="input-group">
+                <label>Código recebido por SMS</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  disabled={recoveryLoading}
+                />
+              </div>
+              <div className="input-group">
+                <label>Nova senha</label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="\\d{1,6}"
+                  value={recoveryPassword}
+                  onChange={(e) => setRecoveryPassword(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  maxLength={6}
+                  disabled={recoveryLoading}
+                />
+              </div>
+              <button type="submit" className="btn-primary" disabled={recoveryLoading || !recoveryCode || !recoveryPassword}>
+                {recoveryLoading ? 'Redefinindo...' : 'Redefinir senha'}
+              </button>
+            </form>
+
+            {recoveryMessage && <div className="success recovery-status">{recoveryMessage}</div>}
+            {recoveryError && <div className="error recovery-status">{recoveryError}</div>}
+          </section>
+        )}
 
         <div className="login-actions">
           <button

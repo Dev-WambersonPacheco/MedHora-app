@@ -13,6 +13,7 @@ const SALT_ROUNDS = 10
 const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 8)
 const PROFILE_ROLES = new Set(['idoso', 'cuidador'])
 const activeSessions = new Map()
+const passwordRecoveryCodes = new Map()
 
 const corsOrigin = process.env.CORS_ORIGIN
 app.use(cors(corsOrigin ? { origin: corsOrigin } : undefined))
@@ -50,6 +51,26 @@ function normalizeRole(value = '') {
 
 function generateInviteCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase()
+}
+
+function generateRecoveryCode() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
+function maskPhone(phone = '') {
+  const digits = cleanCpf(phone).slice(0, 11)
+  if (digits.length < 8) return 'telefone cadastrado'
+  const lastFour = digits.slice(-4)
+  return `(**) *****-${lastFour}`
+}
+
+function cleanupRecoveryCodes() {
+  const now = Date.now()
+  for (const [cpf, recovery] of passwordRecoveryCodes.entries()) {
+    if (!recovery || recovery.expiresAt <= now) {
+      passwordRecoveryCodes.delete(cpf)
+    }
+  }
 }
 
 function createSession(userRow) {
@@ -714,6 +735,78 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   return res.json({ user: toPublicUser(user), token: createSession(user) })
+})
+
+app.post('/api/auth/recovery/request', async (req, res) => {
+  const cpf = cleanCpf(req.body?.cpf)
+
+  if (!cpf) {
+    return res.status(400).json({ error: 'CPF é obrigatório.' })
+  }
+
+  const result = await query('SELECT cpf, phone FROM users WHERE cpf = $1 LIMIT 1', [cpf])
+  const user = result.rows[0]
+
+  if (!user?.phone) {
+    return res.status(400).json({ error: 'Cadastre um telefone no perfil para recuperar a senha por SMS.' })
+  }
+
+  cleanupRecoveryCodes()
+
+  const code = generateRecoveryCode()
+  const expiresAt = Date.now() + 10 * 60 * 1000
+  passwordRecoveryCodes.set(cpf, {
+    code,
+    phone: String(user.phone).trim(),
+    expiresAt
+  })
+
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(`[SMS recovery] CPF ${cpf} -> ${maskPhone(user.phone)} | code: ${code}`)
+  }
+
+  return res.json({
+    message: 'Código de recuperação enviado por SMS.',
+    phoneHint: maskPhone(user.phone),
+    ...(process.env.NODE_ENV !== 'production' ? { debugCode: code } : {})
+  })
+})
+
+app.post('/api/auth/recovery/confirm', async (req, res) => {
+  const cpf = cleanCpf(req.body?.cpf)
+  const code = String(req.body?.code || '').trim()
+  const newPassword = String(req.body?.newPassword || '')
+
+  if (!cpf || !code || !newPassword) {
+    return res.status(400).json({ error: 'CPF, código e nova senha são obrigatórios.' })
+  }
+
+  if (!/^\d{1,6}$/.test(newPassword)) {
+    return res.status(400).json({ error: 'Senha inválida. Deve conter apenas dígitos e ter no máximo 6 caracteres.' })
+  }
+
+  cleanupRecoveryCodes()
+
+  const recovery = passwordRecoveryCodes.get(cpf)
+  if (!recovery || recovery.expiresAt <= Date.now()) {
+    passwordRecoveryCodes.delete(cpf)
+    return res.status(400).json({ error: 'Código expirado ou inexistente. Solicite um novo SMS.' })
+  }
+
+  if (recovery.code !== code) {
+    return res.status(400).json({ error: 'Código inválido. Verifique o SMS enviado.' })
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
+  const updated = await query('UPDATE users SET password = $2 WHERE cpf = $1 RETURNING cpf, name, phone, email, caregiver, role, invite_code', [cpf, hashedPassword])
+
+  passwordRecoveryCodes.delete(cpf)
+
+  if (updated.rowCount === 0) {
+    return res.status(404).json({ error: 'Usuário não encontrado.' })
+  }
+
+  return res.json({ message: 'Senha redefinida com sucesso.' })
 })
 
 app.post('/api/auth/logout', (req, res) => {

@@ -164,3 +164,58 @@
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+.btn-link-recovery {
+  align-self: flex-start;
+  margin: -12px 0 20px;
+  padding: 0;
+  background: transparent;
+  color: var(--color-primary);
+  border: none;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.recovery-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid rgba(2, 75, 130, 0.12);
+  border-radius: 24px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.06);
+}
+
+.recovery-card h2 {
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+
+.recovery-card p {
+  margin: 0 0 18px;
+  color: #4b5563;
+}
+
+.recovery-form {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.recovery-confirm {
+  padding-top: 16px;
+  border-top: 1px solid rgba(2, 75, 130, 0.12);
+}
+
+.recovery-status {
+  margin-bottom: 0;
+}
+
+.success {
+  background: #e8fff1;
+  color: #0a6b3f;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  font-size: 16px;
+  text-align: center;
+}

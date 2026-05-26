@@ -51,6 +51,20 @@ export const api = {
     })
   },
 
+  requestPasswordRecovery(cpf) {
+    return request('/auth/recovery/request', {
+      method: 'POST',
+      body: JSON.stringify({ cpf })
+    })
+  },
+
+  confirmPasswordRecovery(cpf, code, newPassword) {
+    return request('/auth/recovery/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ cpf, code, newPassword })
+    })
+  },
+
   logout() {
     return request('/auth/logout', {
       method: 'POST'
