@@ -4,10 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
 import { api } from '../services/api.js'
 import './Profile.css'
-
-function formatCpf(cpf = '') {
-  return String(cpf).replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-}
+import { formatCpf } from '../utils/cpf.js'
 
 function Profile() {
   const { user, logout } = useAuth()

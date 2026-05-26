@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
 import './Login.css'
+import { formatCpf } from '../utils/cpf.js'
 
 function Login() {
   const [cpf, setCpf] = useState('')
@@ -38,14 +39,7 @@ function Login() {
     }
   }
 
-  const formatCpf = (value) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-      .slice(0, 14)
-  }
+  // usa formatCpf de util
 
   return (
     <div className="login-page">
