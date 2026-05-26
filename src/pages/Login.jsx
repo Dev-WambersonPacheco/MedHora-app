@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
+import PasswordField from '../components/PasswordField.jsx'
 import { api } from '../services/api.js'
 import './Login.css'
 import { formatCpf } from '../utils/cpf.js'
@@ -127,21 +128,16 @@ function Login() {
             />
           </div>
 
-          <div className="input-group">
-            <label>Por favor, digite sua senha:</label>
-            <input
-              type="password"
-              inputMode="numeric"
-              pattern="\\d{1,6}"
-              value={password}
-              onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="******"
-              maxLength={6}
-              required
-              disabled={loading}
-            />
-            <small>Senha: apenas dígitos, máximo 6 caracteres.</small>
-          </div>
+          <PasswordField
+            label="Por favor, digite sua senha:"
+            value={password}
+            onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="******"
+            disabled={loading}
+            helpText="Senha: apenas dígitos, máximo 6 caracteres."
+            autoComplete="current-password"
+            name="password"
+          />
 
           {error && <div className="error">{error}</div>}
 
@@ -199,19 +195,15 @@ function Login() {
                   disabled={recoveryLoading}
                 />
               </div>
-              <div className="input-group">
-                <label>Nova senha</label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  pattern="\\d{1,6}"
-                  value={recoveryPassword}
-                  onChange={(e) => setRecoveryPassword(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                  placeholder="123456"
-                  maxLength={6}
-                  disabled={recoveryLoading}
-                />
-              </div>
+              <PasswordField
+                label="Nova senha"
+                value={recoveryPassword}
+                onChange={(e) => setRecoveryPassword(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                placeholder="123456"
+                disabled={recoveryLoading}
+                autoComplete="new-password"
+                name="recoveryPassword"
+              />
               <button type="submit" className="btn-primary" disabled={recoveryLoading || !recoveryCode || !recoveryPassword}>
                 {recoveryLoading ? 'Redefinindo...' : 'Redefinir senha'}
               </button>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
+import PasswordField from '../components/PasswordField.jsx'
 import ProfileTypeToggle from '../components/ProfileTypeToggle.jsx'
 import './CreateAccount.css'
 import { formatCpf } from '../utils/cpf.js'
@@ -19,6 +20,14 @@ function CreateAccount() {
   const navigate = useNavigate()
   const { register } = useAuth()
 
+  const getFriendlyError = (message) => {
+    if (message?.includes('CPF ja cadastrado') || message?.includes('CPF já cadastrado')) {
+      return 'Esse CPF já está cadastrado. Faça login ou recupere sua senha por SMS.'
+    }
+
+    return message || 'Nao foi possivel criar a conta.'
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -30,7 +39,7 @@ function CreateAccount() {
     if (result.success) {
       navigate('/')
     } else {
-      setError(result.error)
+      setError(getFriendlyError(result.error))
     }
   }
 
@@ -89,20 +98,15 @@ function CreateAccount() {
             <small>Esse telefone será usado para recuperar a senha por SMS.</small>
           </div>
 
-          <div className="input-group">
-            <label>Senha (apenas números, até 6 dígitos):</label>
-            <input
-              type="password"
-              inputMode="numeric"
-              pattern="\\d{1,6}"
-              value={form.password}
-              onChange={(e) => setForm({...form, password: e.target.value.replace(/[^0-9]/g, '')})}
-              placeholder="123456"
-              maxLength={6}
-              required
-              disabled={loading}
-            />
-          </div>
+          <PasswordField
+            label="Senha (apenas números, até 6 dígitos):"
+            value={form.password}
+            onChange={(e) => setForm({...form, password: e.target.value.replace(/[^0-9]/g, '')})}
+            placeholder="123456"
+            disabled={loading}
+            autoComplete="new-password"
+            name="password"
+          />
 
           {error && <div className="error">{error}</div>}
 

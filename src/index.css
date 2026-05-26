@@ -93,6 +93,40 @@ input, textarea, select {
   cursor: not-allowed;
 }
 
+.password-field .password-input-wrap {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 72px;
+}
+
+.password-visibility-toggle {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(2, 75, 130, 0.08);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.2s ease;
+}
+
+.password-visibility-toggle:hover:not(:disabled) {
+  background: rgba(2, 75, 130, 0.14);
+}
+
+.password-visibility-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 a {
   text-decoration: none;
   color: inherit;
