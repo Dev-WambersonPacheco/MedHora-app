@@ -681,6 +681,11 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'CPF e senha sao obrigatorios.' })
   }
 
+  // valida senha: apenas dígitos e no máximo 6 caracteres
+  if (!/^\d{1,6}$/.test(password)) {
+    return res.status(400).json({ error: 'Senha inválida. Deve conter apenas dígitos e ter no máximo 6 caracteres.' })
+  }
+
   const result = await query(
     'SELECT cpf, password, name, phone, email, caregiver, role, invite_code FROM users WHERE cpf = $1 LIMIT 1',
     [cpf]
@@ -728,6 +733,11 @@ app.post('/api/auth/register', async (req, res) => {
 
   if (!cpf || !password || !name) {
     return res.status(400).json({ error: 'Nome, CPF e senha sao obrigatorios.' })
+  }
+
+  // valida formato da senha: somente dígitos e até 6 caracteres
+  if (!/^\d{1,6}$/.test(password)) {
+    return res.status(400).json({ error: 'Senha inválida. Deve conter apenas dígitos e ter no máximo 6 caracteres.' })
   }
 
   if (!PROFILE_ROLES.has(role)) {
