@@ -8,6 +8,22 @@ const SESSION_KEY = 'medhora_session'
 function loadStoredUser() {
   try {
     const session = localStorage.getItem(SESSION_KEY)
+    if (!session) return null
+
+    const parsed = JSON.parse(session)
+    return {
+      ...(parsed.user || parsed),
+      role: (parsed.user || parsed).role || 'idoso',
+      inviteCode: (parsed.user || parsed).inviteCode || null
+    }
+  } catch {
+    return null
+  }
+}
+
+function loadStoredSession() {
+  try {
+    const session = localStorage.getItem(SESSION_KEY)
     return session ? JSON.parse(session) : null
   } catch {
     return null
@@ -20,7 +36,7 @@ export function AuthProvider({ children }) {
   const login = (cpf, password) => {
     return api.login(cpf, password)
       .then((response) => {
-        localStorage.setItem(SESSION_KEY, JSON.stringify(response.user))
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: response.token }))
         setUser(response.user)
         return { success: true }
       })
@@ -31,6 +47,9 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
+    api.logout().catch(() => {
+      // O logout local deve acontecer mesmo se a sessao ja expirou no servidor.
+    })
     localStorage.removeItem(SESSION_KEY)
     setUser(null)
   }
@@ -38,7 +57,7 @@ export function AuthProvider({ children }) {
   const register = (data) => {
     return api.register(data)
       .then((response) => {
-        localStorage.setItem(SESSION_KEY, JSON.stringify(response.user))
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: response.token }))
         setUser(response.user)
         return { success: true }
       })
@@ -53,7 +72,8 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await api.updateUser(user.cpf, updates)
-      localStorage.setItem(SESSION_KEY, JSON.stringify(response.user))
+      const session = loadStoredSession()
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: session?.token || null }))
       setUser(response.user)
       return { success: true }
     } catch (error) {

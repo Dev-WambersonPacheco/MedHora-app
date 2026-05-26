@@ -10,8 +10,16 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(30),
   email VARCHAR(120),
   caregiver JSONB,
+  role VARCHAR(20) NOT NULL DEFAULT 'idoso',
+  invite_code VARCHAR(16),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code
+  ON users(invite_code)
+  WHERE invite_code IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 CREATE TABLE IF NOT EXISTS medications (
   id VARCHAR(64) PRIMARY KEY,
@@ -21,6 +29,9 @@ CREATE TABLE IF NOT EXISTS medications (
   amount NUMERIC(10,3),
   unit VARCHAR(32),
   time VARCHAR(5) NOT NULL,
+  treatment_days INTEGER NOT NULL DEFAULT 1,
+  start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  end_date DATE NOT NULL DEFAULT CURRENT_DATE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -32,7 +43,19 @@ CREATE TABLE IF NOT EXISTS medication_intake (
   PRIMARY KEY (user_cpf, medication_id, day_key)
 );
 
+CREATE TABLE IF NOT EXISTS caregiver_links (
+  id BIGSERIAL PRIMARY KEY,
+  elder_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+  caregiver_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (elder_cpf, caregiver_cpf)
+);
+
+CREATE INDEX IF NOT EXISTS idx_caregiver_links_elder ON caregiver_links(elder_cpf);
+CREATE INDEX IF NOT EXISTS idx_caregiver_links_caregiver ON caregiver_links(caregiver_cpf);
+
 CREATE INDEX IF NOT EXISTS idx_medications_user_cpf ON medications(user_cpf);
+CREATE INDEX IF NOT EXISTS idx_medications_active_period ON medications(user_cpf, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_medication_intake_day_key ON medication_intake(day_key);
 
 CREATE TABLE IF NOT EXISTS anvisa_medicamentos (
@@ -52,11 +75,13 @@ CREATE INDEX IF NOT EXISTS idx_anvisa_medicamentos_nome_trgm ON anvisa_medicamen
 CREATE INDEX IF NOT EXISTS idx_anvisa_medicamentos_principio_trgm ON anvisa_medicamentos USING gin (principio_ativo gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_anvisa_medicamentos_complemento_trgm ON anvisa_medicamentos USING gin (complemento_marca gin_trgm_ops);
 
-INSERT INTO users (cpf, password, name, caregiver)
+INSERT INTO users (cpf, password, name, caregiver, role, invite_code)
 VALUES (
   '12345678900',
   '$2b$10$lb2vyjWxmhEIweZabER8m.9D8DjplEQGwVgjb3cqnMHrF8SkQLgUC',
   'SEBASTIAO',
-  '{"name":"MARIA OLIVEIRA","role":"Cuidadora Responsavel","phone":"(92) 98765-4321","email":"maria.oliveira@gmail.com","address":"Itacoatiara - AM"}'::jsonb
+  '{"name":"MARIA OLIVEIRA","role":"Cuidadora Responsavel","phone":"(92) 98765-4321","email":"maria.oliveira@gmail.com","address":"Itacoatiara - AM"}'::jsonb,
+  'idoso',
+  'SEB12345'
 )
 ON CONFLICT (cpf) DO NOTHING;

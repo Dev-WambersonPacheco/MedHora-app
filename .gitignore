@@ -2,3 +2,7 @@ node_modules/
 dist/
 .vite/
 .DS_Store
+consulta_medicamento.xls
+consulta_medicamento_anvisa.csv
+ready -h 127.0.0.1 -p 5432
+tatus --short --branch

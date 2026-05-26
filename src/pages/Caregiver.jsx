@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Header from '../components/Header.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../services/api.js'
 import { cancelReminderAlerts, scheduleReminderAlert } from '../utils/alerts.js'
 import { requestNotificationPermission } from '../utils/notifications.js'
 import './Caregiver.css'
@@ -36,10 +38,14 @@ function loadItems() {
 }
 
 function Caregiver() {
+  const { user } = useAuth()
   const [items, setItems] = useState(() => loadItems())
   const [form, setForm] = useState(emptyForm())
   const [editingId, setEditingId] = useState(null)
   const [message, setMessage] = useState('')
+  const [dashboard, setDashboard] = useState(null)
+  const [dashboardError, setDashboardError] = useState('')
+  const [loadingDashboard, setLoadingDashboard] = useState(false)
 
   useEffect(() => {
     requestNotificationPermission()
@@ -48,9 +54,46 @@ function Caregiver() {
     items.forEach((item) => scheduleReminderAlert(item))
   }, [items])
 
+  useEffect(() => {
+    if (!user?.cpf) return
+
+    let mounted = true
+
+    const loadDashboard = async () => {
+      setLoadingDashboard(true)
+      setDashboardError('')
+      try {
+        const response = await api.getUserDashboard(user.cpf)
+        if (mounted) setDashboard(response)
+      } catch (error) {
+        if (mounted) setDashboardError(error.message || 'Nao foi possivel carregar os idosos vinculados.')
+      } finally {
+        if (mounted) setLoadingDashboard(false)
+      }
+    }
+
+    loadDashboard()
+    const interval = setInterval(loadDashboard, 15000)
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
+  }, [user?.cpf])
+
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
   }, [items])
+
+  const linkedElders = useMemo(() => dashboard?.elders || [], [dashboard])
+  const reportCards = useMemo(() => {
+    return linkedElders.map((elder) => ({
+      cpf: elder.cpf,
+      name: elder.name,
+      weekly: elder.reports?.weekly,
+      monthly: elder.reports?.monthly
+    }))
+  }, [linkedElders])
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -113,6 +156,110 @@ function Caregiver() {
             <p>Crie lembretes personalizados com data, hora e prioridade para reforçar os cuidados diários.</p>
           </div>
           <div className="caregiver-hero-badge">Alertas automáticos</div>
+        </section>
+
+        <section className="caregiver-live-panel">
+          <div className="caregiver-live-header">
+            <div>
+              <h2>Acompanhamento em tempo real</h2>
+              <p>Veja os idosos vinculados, os medicamentos pendentes e o status de cumprimento sem sair do app.</p>
+            </div>
+            <div className="caregiver-live-badge">
+              {loadingDashboard ? 'Atualizando...' : `${linkedElders.length} idoso(s)`}
+            </div>
+          </div>
+
+          {dashboardError && <div className="success-message">{dashboardError}</div>}
+
+          <div className="caregiver-live-grid">
+            {linkedElders.map((elder) => (
+              <article key={elder.cpf} className="caregiver-live-card">
+                <div className="caregiver-live-card-top">
+                  <div>
+                    <h3>{elder.name}</h3>
+                    <p>{elder.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</p>
+                  </div>
+                  {elder.inviteCode && <span className="caregiver-live-code">{elder.inviteCode}</span>}
+                </div>
+
+                <div className="caregiver-live-stats">
+                  <span>Pendentes: {elder.pendingMedications || 0}</span>
+                  <span>Concluídos: {elder.completedMedications || 0}</span>
+                  <span>Total: {elder.medicationCount || 0}</span>
+                </div>
+
+                <div className="caregiver-live-feed">
+                  <h4>Próximas doses</h4>
+                  {elder.pendingItems?.length ? elder.pendingItems.slice(0, 4).map((medication) => (
+                    <div key={medication.id} className="caregiver-feed-item">
+                      <strong>{medication.name}</strong>
+                      <span>{medication.dose} • {medication.time}</span>
+                    </div>
+                  )) : (
+                    <p className="caregiver-feed-empty">Nenhuma dose pendente agora.</p>
+                  )}
+                </div>
+              </article>
+            ))}
+
+            {!linkedElders.length && !loadingDashboard && (
+              <div className="empty-state caregiver-live-empty">
+                <div className="empty-icon">📡</div>
+                <h3>Nenhum idoso vinculado</h3>
+                <p>Vincule um idoso para acompanhar medicamentos e alertas em tempo real.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="caregiver-reports-panel">
+          <div className="caregiver-live-header">
+            <div>
+              <h2>Relatórios de tratamento</h2>
+              <p>Resumo semanal e mensal gerado automaticamente para cada idoso vinculado.</p>
+            </div>
+          </div>
+
+          <div className="caregiver-report-list">
+            {reportCards.map((report) => (
+              <article key={report.cpf} className="caregiver-report-card">
+                <h3>{report.name}</h3>
+                <div className="report-period-grid">
+                  {[
+                    ['Semanal', report.weekly],
+                    ['Mensal', report.monthly]
+                  ].map(([label, data]) => (
+                    <div key={label} className="report-period-card">
+                      <div className="report-period-title">{label}</div>
+                      <div className="report-score">{data?.adherenceRate || 0}%</div>
+                      <div className="report-stats">
+                        <span>Tomadas: {data?.takenDoses || 0}</span>
+                        <span>Não tomadas: {data?.missedDoses || 0}</span>
+                        <span>Pendentes: {data?.pendingMedications || 0}</span>
+                      </div>
+                      <div className="report-trend" aria-label={`Evolução ${label.toLowerCase()}`}>
+                        {(data?.adherenceTrend || []).slice(-7).map((day) => (
+                          <span
+                            key={day.date}
+                            style={{ height: `${Math.max(8, Number(day.adherence || 0))}%` }}
+                            title={`${day.date}: ${day.adherence}%`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+
+            {!reportCards.length && !loadingDashboard && (
+              <div className="empty-state caregiver-live-empty">
+                <div className="empty-icon">%</div>
+                <h3>Sem relatórios ainda</h3>
+                <p>Os relatórios aparecem quando houver idosos vinculados com medicamentos ativos.</p>
+              </div>
+            )}
+          </div>
         </section>
 
         <form className="caregiver-form" onSubmit={handleSubmit}>

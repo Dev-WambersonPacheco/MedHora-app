@@ -249,6 +249,26 @@
   background: #e4f1fb;
 }
 
+.duration-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.duration-inline span {
+  min-height: 72px;
+  padding: 0 20px;
+  border-radius: 20px;
+  background: #eef6fc;
+  color: var(--color-primary);
+  font-size: 18px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .add-med-form .error {
   background: #ffebee;
   color: #c62828;
@@ -371,6 +391,10 @@
   }
 
   .dose-inline-group {
+    grid-template-columns: 1fr;
+  }
+
+  .duration-inline {
     grid-template-columns: 1fr;
   }
 

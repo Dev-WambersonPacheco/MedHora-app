@@ -22,6 +22,18 @@
   letter-spacing: 1px;
 }
 
+.welcome-role {
+  display: inline-flex;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(2, 75, 130, 0.1);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
 .pending-meds {
   margin-bottom: 32px;
 }
@@ -200,6 +212,144 @@
   transform: translateY(1px);
 }
 
+.caregiver-home {
+  display: grid;
+  gap: 20px;
+}
+
+.caregiver-home-actions {
+  display: grid;
+  gap: 14px;
+}
+
+.caregiver-add-elder {
+  padding: 22px;
+}
+
+.home-message {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff4d8;
+  color: #8a5b00;
+  font-weight: 700;
+}
+
+.elder-list-section {
+  display: grid;
+  gap: 14px;
+}
+
+.elder-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.elder-list-header h3 {
+  color: var(--color-primary);
+  font-size: 22px;
+}
+
+.elder-list-header span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(2, 75, 130, 0.08);
+  color: var(--color-primary);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.elder-list {
+  display: grid;
+  gap: 14px;
+}
+
+.elder-card {
+  background: white;
+  border-radius: 20px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 14px;
+  border: 1px solid rgba(2, 75, 130, 0.1);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+.elder-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), #0b73a8);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.elder-card-main {
+  min-width: 0;
+}
+
+.elder-card-main h4 {
+  color: #17324a;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.elder-card-main p {
+  color: #5a6772;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.elder-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.status-chip {
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-chip.danger {
+  background: #ffe9ea;
+  color: #b42318;
+}
+
+.status-chip.success {
+  background: #e9f8ee;
+  color: #25603b;
+}
+
+.status-chip.info {
+  background: #eef6fc;
+  color: var(--color-primary);
+}
+
+.elder-quick-status {
+  grid-column: 1 / -1;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #eef6fc;
+  color: var(--color-primary);
+  text-align: center;
+  font-weight: 800;
+}
+
+.caregiver-home-empty {
+  background: white;
+  border-radius: 20px;
+  border: 1px dashed rgba(2, 75, 130, 0.18);
+}
+
 @media (max-width: 480px) {
   .pending-card {
     padding: 20px;
@@ -207,5 +357,14 @@
   
   .btn-add-med {
     padding: 24px;
+  }
+
+  .elder-card {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .elder-photo {
+    width: 56px;
+    height: 56px;
   }
 }

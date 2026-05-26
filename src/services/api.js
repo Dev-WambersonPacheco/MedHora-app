@@ -1,9 +1,21 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+const SESSION_KEY = 'medhora_session'
+
+function readSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
 
 async function request(path, options = {}) {
+  const session = typeof localStorage !== 'undefined' ? readSession() : null
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(session?.token ? { 'x-medhora-token': session.token } : {}),
       ...(options.headers || {})
     },
     ...options
@@ -39,10 +51,40 @@ export const api = {
     })
   },
 
+  logout() {
+    return request('/auth/logout', {
+      method: 'POST'
+    })
+  },
+
   updateUser(cpf, updates) {
     return request(`/users/${cpf}`, {
       method: 'PATCH',
       body: JSON.stringify(updates)
+    })
+  },
+
+  getUserDashboard(cpf, dayKey) {
+    const query = new URLSearchParams(dayKey ? { dayKey } : {})
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return request(`/users/${cpf}/dashboard${suffix}`)
+  },
+
+  getTreatmentReport(cpf, period = 'weekly') {
+    const query = new URLSearchParams({ period })
+    return request(`/users/${cpf}/reports?${query.toString()}`)
+  },
+
+  linkUserProfile(cpf, identifier) {
+    return request(`/users/${cpf}/relations/link`, {
+      method: 'POST',
+      body: JSON.stringify({ identifier })
+    })
+  },
+
+  unlinkUserProfile(cpf, linkedCpf) {
+    return request(`/users/${cpf}/relations/${linkedCpf}`, {
+      method: 'DELETE'
     })
   },
 

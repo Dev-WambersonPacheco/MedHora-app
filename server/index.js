@@ -10,8 +10,12 @@ dotenv.config()
 const app = express()
 const port = Number(process.env.PORT || 4000)
 const SALT_ROUNDS = 10
+const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 8)
+const PROFILE_ROLES = new Set(['idoso', 'cuidador'])
+const activeSessions = new Map()
 
-app.use(cors())
+const corsOrigin = process.env.CORS_ORIGIN
+app.use(cors(corsOrigin ? { origin: corsOrigin } : undefined))
 app.use(express.json())
 
 function cleanCpf(cpf = '') {
@@ -24,7 +28,9 @@ function toPublicUser(userRow) {
     name: userRow.name,
     phone: userRow.phone || '',
     email: userRow.email || '',
-    caregiver: userRow.caregiver || null
+    caregiver: userRow.caregiver || null,
+    role: normalizeRole(userRow.role),
+    inviteCode: userRow.invite_code || null
   }
 }
 
@@ -35,6 +41,160 @@ function getTodayKey() {
 
 function isBcryptHash(value = '') {
   return /^\$2[aby]\$\d{2}\$/.test(value)
+}
+
+function normalizeRole(value = '') {
+  const role = String(value || '').trim().toLowerCase()
+  return PROFILE_ROLES.has(role) ? role : 'idoso'
+}
+
+function generateInviteCode() {
+  return crypto.randomBytes(4).toString('hex').toUpperCase()
+}
+
+function createSession(userRow) {
+  const token = crypto.randomUUID()
+  const now = Date.now()
+  activeSessions.set(token, {
+    cpf: userRow.cpf,
+    role: normalizeRole(userRow.role),
+    createdAt: now,
+    expiresAt: now + SESSION_MAX_AGE_MS
+  })
+  return token
+}
+
+function getSessionFromRequest(req) {
+  const token = String(req.header('x-medhora-token') || '').trim()
+  if (!token) return null
+
+  const session = activeSessions.get(token)
+  if (!session) return null
+
+  if (session.expiresAt <= Date.now()) {
+    activeSessions.delete(token)
+    return null
+  }
+
+  return { token, ...session }
+}
+
+function requireSelfAccess(req, res, cpf) {
+  const session = getSessionFromRequest(req)
+  if (!session || session.cpf !== cpf) {
+    res.status(401).json({ error: 'Sessao invalida ou expirada.' })
+    return null
+  }
+
+  return session
+}
+
+async function ensureUniqueInviteCode(existingCodes) {
+  let code = generateInviteCode()
+  while (existingCodes.has(code)) {
+    code = generateInviteCode()
+  }
+  existingCodes.add(code)
+  return code
+}
+
+async function ensureProfileSchema() {
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'idoso'
+  `)
+
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS invite_code VARCHAR(16)
+  `)
+
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code
+    ON users(invite_code)
+    WHERE invite_code IS NOT NULL
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_users_role
+    ON users(role)
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS caregiver_links (
+      id BIGSERIAL PRIMARY KEY,
+      elder_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+      caregiver_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (elder_cpf, caregiver_cpf)
+    )
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_caregiver_links_elder
+    ON caregiver_links(elder_cpf)
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_caregiver_links_caregiver
+    ON caregiver_links(caregiver_cpf)
+  `)
+
+  await query(`
+    ALTER TABLE medications
+    ADD COLUMN IF NOT EXISTS treatment_days INTEGER NOT NULL DEFAULT 1
+  `)
+
+  await query(`
+    ALTER TABLE medications
+    ADD COLUMN IF NOT EXISTS start_date DATE NOT NULL DEFAULT CURRENT_DATE
+  `)
+
+  await query(`
+    ALTER TABLE medications
+    ADD COLUMN IF NOT EXISTS end_date DATE NOT NULL DEFAULT CURRENT_DATE
+  `)
+
+  await query(`
+    UPDATE medications
+    SET
+      treatment_days = GREATEST(COALESCE(treatment_days, 1), 1),
+      start_date = COALESCE(start_date, created_at::date, CURRENT_DATE),
+      end_date = COALESCE(end_date, COALESCE(start_date, created_at::date, CURRENT_DATE) + (GREATEST(COALESCE(treatment_days, 1), 1) - 1))
+    WHERE treatment_days IS NULL
+       OR start_date IS NULL
+       OR end_date IS NULL
+  `)
+
+  await query(`
+    UPDATE medications
+    SET
+      treatment_days = 365,
+      end_date = start_date + 364
+    WHERE treatment_days = 1
+      AND start_date = end_date
+      AND created_at::date < CURRENT_DATE
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_medications_active_period
+    ON medications(user_cpf, start_date, end_date)
+  `)
+
+  const usersResult = await query('SELECT cpf, invite_code FROM users ORDER BY cpf')
+  const existingCodesResult = await query('SELECT invite_code FROM users WHERE invite_code IS NOT NULL')
+  const existingCodes = new Set(existingCodesResult.rows.map((row) => String(row.invite_code).trim()).filter(Boolean))
+
+  for (const row of usersResult.rows) {
+    const inviteCode = String(row.invite_code || '').trim() || await ensureUniqueInviteCode(existingCodes)
+    await query(
+      `UPDATE users
+       SET role = COALESCE(NULLIF(role, ''), 'idoso'),
+           invite_code = $2
+       WHERE cpf = $1`,
+      [row.cpf, inviteCode]
+    )
+  }
 }
 
 function formatAmountText(value) {
@@ -56,8 +216,419 @@ function formatDose(amount, unit, legacyDose = '') {
   return String(legacyDose || '').trim()
 }
 
+function isValidTime(value = '') {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value))
+}
+
+function toDateKey(date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function getPeriodRange(period = 'weekly') {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = period === 'monthly' ? 30 : 7
+  const start = new Date(today)
+  start.setDate(today.getDate() - (days - 1))
+
+  return {
+    days,
+    startKey: toDateKey(start),
+    endKey: toDateKey(today)
+  }
+}
+
+async function getMedicationFeed(cpf, dayKey = getTodayKey()) {
+  const result = await query(
+    `SELECT
+      m.id,
+      m.name,
+      m.amount,
+      m.unit,
+      m.treatment_days AS "treatmentDays",
+      m.start_date AS "startDate",
+      m.end_date AS "endDate",
+      COALESCE(
+        CASE
+          WHEN m.amount IS NOT NULL AND m.unit IS NOT NULL THEN concat(m.amount::text, ' ', m.unit)
+          ELSE NULL
+        END,
+        m.dose
+      ) AS dose,
+      m.time,
+      m.created_at AS "createdAt",
+      COALESCE(mi.taken, FALSE) AS "takenToday"
+    FROM medications m
+    LEFT JOIN medication_intake mi
+      ON mi.medication_id = m.id
+      AND mi.user_cpf = m.user_cpf
+      AND mi.day_key = $2
+    WHERE m.user_cpf = $1
+      AND $2::date BETWEEN m.start_date AND m.end_date
+    ORDER BY m.time ASC`,
+    [cpf, dayKey]
+  )
+
+  return result.rows.map((medication) => ({
+    ...medication,
+    dose: formatDose(medication.amount, medication.unit, medication.dose)
+  }))
+}
+
+function toLinkedUser(userRow, summary = {}) {
+  return {
+    ...toPublicUser(userRow),
+    linkedAt: userRow.linked_at || null,
+    medicationCount: Number(summary.medicationCount || 0),
+    pendingMedications: Number(summary.pendingMedications || 0),
+    completedMedications: Number(summary.completedMedications || 0),
+    medications: summary.medications || [],
+    pendingItems: summary.pendingItems || [],
+    reports: summary.reports || null
+  }
+}
+
+async function getMedicationSummary(cpf, dayKey = getTodayKey()) {
+  const result = await query(
+    `SELECT
+      COUNT(*)::int AS "medicationCount",
+      COUNT(*) FILTER (WHERE COALESCE(mi.taken, FALSE) = FALSE)::int AS "pendingMedications",
+      COUNT(*) FILTER (WHERE COALESCE(mi.taken, FALSE) = TRUE)::int AS "completedMedications"
+    FROM medications m
+    LEFT JOIN medication_intake mi
+      ON mi.medication_id = m.id
+      AND mi.user_cpf = m.user_cpf
+      AND mi.day_key = $2
+    WHERE m.user_cpf = $1
+      AND $2::date BETWEEN m.start_date AND m.end_date`,
+    [cpf, dayKey]
+  )
+
+  return result.rows[0] || { medicationCount: 0, pendingMedications: 0, completedMedications: 0 }
+}
+
+async function getTreatmentReport(cpf, period = 'weekly') {
+  const normalizedPeriod = period === 'monthly' ? 'monthly' : 'weekly'
+  const { days, startKey, endKey } = getPeriodRange(normalizedPeriod)
+
+  const result = await query(
+    `WITH days AS (
+       SELECT generate_series($2::date, $3::date, interval '1 day')::date AS report_date
+     ),
+     scheduled AS (
+       SELECT
+         d.report_date,
+         m.id,
+         m.user_cpf,
+         m.name,
+         m.time
+       FROM days d
+       INNER JOIN medications m
+         ON m.user_cpf = $1
+        AND d.report_date BETWEEN m.start_date AND m.end_date
+     ),
+     daily AS (
+       SELECT
+         s.report_date,
+         COUNT(*)::int AS scheduled,
+         COUNT(*) FILTER (WHERE COALESCE(mi.taken, FALSE) = TRUE)::int AS taken,
+         COUNT(*) FILTER (
+           WHERE COALESCE(mi.taken, FALSE) = FALSE
+             AND (
+               s.report_date < CURRENT_DATE
+               OR (s.report_date = CURRENT_DATE AND s.time < TO_CHAR(NOW(), 'HH24:MI'))
+             )
+         )::int AS missed
+       FROM scheduled s
+       LEFT JOIN medication_intake mi
+         ON mi.user_cpf = s.user_cpf
+       AND mi.medication_id = s.id
+       AND mi.day_key::date = s.report_date
+       GROUP BY s.report_date
+     ),
+     pending_today AS (
+       SELECT COUNT(*)::int AS total
+       FROM scheduled s
+       LEFT JOIN medication_intake mi
+         ON mi.user_cpf = s.user_cpf
+       AND mi.medication_id = s.id
+       AND mi.day_key::date = s.report_date
+       WHERE s.report_date = CURRENT_DATE
+         AND COALESCE(mi.taken, FALSE) = FALSE
+     )
+     SELECT
+       COALESCE(SUM(daily.scheduled), 0)::int AS "scheduledDoses",
+       COALESCE(SUM(daily.taken), 0)::int AS "takenDoses",
+       COALESCE(SUM(daily.missed), 0)::int AS "missedDoses",
+       COALESCE((SELECT total FROM pending_today), 0)::int AS "pendingMedications",
+       COALESCE(
+         json_agg(
+           json_build_object(
+             'date', daily.report_date::text,
+             'scheduled', daily.scheduled,
+             'taken', daily.taken,
+             'adherence', CASE
+               WHEN daily.scheduled = 0 THEN 0
+               ELSE ROUND((daily.taken::numeric / daily.scheduled::numeric) * 100)
+             END
+           )
+           ORDER BY daily.report_date
+         ) FILTER (WHERE daily.report_date IS NOT NULL),
+         '[]'::json
+       ) AS "adherenceTrend"
+     FROM daily`,
+    [cpf, startKey, endKey]
+  )
+
+  const row = result.rows[0] || {}
+  const scheduledDoses = Number(row.scheduledDoses || 0)
+  const takenDoses = Number(row.takenDoses || 0)
+
+  return {
+    period: normalizedPeriod,
+    startDate: startKey,
+    endDate: endKey,
+    days,
+    scheduledDoses,
+    takenDoses,
+    missedDoses: Number(row.missedDoses || 0),
+    pendingMedications: Number(row.pendingMedications || 0),
+    adherenceRate: scheduledDoses > 0 ? Math.round((takenDoses / scheduledDoses) * 100) : 0,
+    adherenceTrend: row.adherenceTrend || []
+  }
+}
+
+async function findUserByIdentifier(identifier) {
+  const value = String(identifier || '').trim()
+  if (!value) return null
+
+  const cleanedCpf = cleanCpf(value)
+  if (cleanedCpf.length === 11) {
+    const result = await query(
+      'SELECT cpf, name, phone, email, caregiver, role, invite_code FROM users WHERE cpf = $1 LIMIT 1',
+      [cleanedCpf]
+    )
+    return result.rows[0] || null
+  }
+
+  const result = await query(
+    `SELECT cpf, name, phone, email, caregiver, role, invite_code
+     FROM users
+     WHERE LOWER(email) = LOWER($1)
+        OR invite_code = $1
+        OR LOWER(name) = LOWER($1)
+        OR name ILIKE $2
+     ORDER BY CASE
+       WHEN LOWER(email) = LOWER($1) THEN 1
+       WHEN invite_code = $1 THEN 2
+       WHEN LOWER(name) = LOWER($1) THEN 3
+       ELSE 4
+     END
+     LIMIT 1`,
+    [value, `%${value}%`]
+  )
+
+  return result.rows[0] || null
+}
+
+async function getLinkedProfiles(cpf, dayKey = getTodayKey()) {
+  const caregiversResult = await query(
+    `SELECT u.cpf, u.name, u.phone, u.email, u.caregiver, u.role, u.invite_code, cl.created_at AS linked_at
+     FROM caregiver_links cl
+     INNER JOIN users u ON u.cpf = cl.caregiver_cpf
+     WHERE cl.elder_cpf = $1
+     ORDER BY u.name ASC`,
+    [cpf]
+  )
+
+  const eldersResult = await query(
+    `SELECT u.cpf, u.name, u.phone, u.email, u.caregiver, u.role, u.invite_code, cl.created_at AS linked_at
+     FROM caregiver_links cl
+     INNER JOIN users u ON u.cpf = cl.elder_cpf
+     WHERE cl.caregiver_cpf = $1
+     ORDER BY u.name ASC`,
+    [cpf]
+  )
+
+  const caregivers = await Promise.all(
+    caregiversResult.rows.map(async (row) => {
+      const summary = await getMedicationSummary(row.cpf, dayKey)
+      const medications = await getMedicationFeed(row.cpf, dayKey)
+      const weeklyReport = await getTreatmentReport(row.cpf, 'weekly')
+      const monthlyReport = await getTreatmentReport(row.cpf, 'monthly')
+      return toLinkedUser(row, {
+        ...summary,
+        medications,
+        pendingItems: medications.filter((medication) => !medication.takenToday),
+        reports: { weekly: weeklyReport, monthly: monthlyReport }
+      })
+    })
+  )
+
+  const elders = await Promise.all(
+    eldersResult.rows.map(async (row) => {
+      const summary = await getMedicationSummary(row.cpf, dayKey)
+      const medications = await getMedicationFeed(row.cpf, dayKey)
+      const weeklyReport = await getTreatmentReport(row.cpf, 'weekly')
+      const monthlyReport = await getTreatmentReport(row.cpf, 'monthly')
+      return toLinkedUser(row, {
+        ...summary,
+        medications,
+        pendingItems: medications.filter((medication) => !medication.takenToday),
+        reports: { weekly: weeklyReport, monthly: monthlyReport }
+      })
+    })
+  )
+
+  return { caregivers, elders }
+}
+
+async function getProfileDashboard(cpf, dayKey = getTodayKey()) {
+  const userResult = await query(
+    'SELECT cpf, name, phone, email, caregiver, role, invite_code FROM users WHERE cpf = $1 LIMIT 1',
+    [cpf]
+  )
+
+  const user = userResult.rows[0]
+  if (!user) return null
+
+  const ownSummary = await getMedicationSummary(cpf, dayKey)
+  const ownMedications = await getMedicationFeed(cpf, dayKey)
+  const links = await getLinkedProfiles(cpf, dayKey)
+  const linkedSummary = (normalizeRole(user.role) === 'cuidador' ? links.elders : links.caregivers)
+    .reduce((acc, item) => {
+      acc.medicationCount += Number(item.medicationCount || 0)
+      acc.pendingMedications += Number(item.pendingMedications || 0)
+      acc.completedMedications += Number(item.completedMedications || 0)
+      return acc
+    }, { medicationCount: 0, pendingMedications: 0, completedMedications: 0 })
+
+  return {
+    user: toPublicUser(user),
+    summary: {
+      medicationCount: Number(ownSummary.medicationCount || 0),
+      pendingMedications: Number(ownSummary.pendingMedications || 0),
+      completedMedications: Number(ownSummary.completedMedications || 0),
+      linkedMedicationCount: Number(linkedSummary.medicationCount || 0),
+      linkedPendingMedications: Number(linkedSummary.pendingMedications || 0),
+      linkedCompletedMedications: Number(linkedSummary.completedMedications || 0)
+    },
+    medications: ownMedications,
+    pendingItems: ownMedications.filter((medication) => !medication.takenToday),
+    ...links
+  }
+}
+
+async function linkCaregiverProfile(cpf, identifier) {
+  const userResult = await query(
+    'SELECT cpf, role FROM users WHERE cpf = $1 LIMIT 1',
+    [cpf]
+  )
+
+  const currentUser = userResult.rows[0]
+  if (!currentUser) {
+    return { status: 404, error: 'Usuario nao encontrado.' }
+  }
+
+  const targetUser = await findUserByIdentifier(identifier)
+  if (!targetUser) {
+    return { status: 404, error: 'Usuario informado nao encontrado.' }
+  }
+
+  if (targetUser.cpf === currentUser.cpf) {
+    return { status: 400, error: 'Nao e possivel vincular o proprio perfil.' }
+  }
+
+  const currentRole = normalizeRole(currentUser.role)
+  const targetRole = normalizeRole(targetUser.role)
+  const expectedTargetRole = currentRole === 'cuidador' ? 'idoso' : 'cuidador'
+
+  if (targetRole !== expectedTargetRole) {
+    return { status: 400, error: `O perfil informado deve ser do tipo ${expectedTargetRole}.` }
+  }
+
+  const elderCpf = currentRole === 'idoso' ? currentUser.cpf : targetUser.cpf
+  const caregiverCpf = currentRole === 'cuidador' ? currentUser.cpf : targetUser.cpf
+
+  await query(
+    `INSERT INTO caregiver_links (elder_cpf, caregiver_cpf)
+     VALUES ($1, $2)
+     ON CONFLICT (elder_cpf, caregiver_cpf) DO NOTHING`,
+    [elderCpf, caregiverCpf]
+  )
+
+  return { status: 201, linked: { elderCpf, caregiverCpf } }
+}
+
+async function unlinkCaregiverProfile(cpf, linkedCpf) {
+  const deleted = await query(
+    `DELETE FROM caregiver_links
+     WHERE (elder_cpf = $1 AND caregiver_cpf = $2)
+        OR (elder_cpf = $2 AND caregiver_cpf = $1)`,
+    [cpf, linkedCpf]
+  )
+
+  if (deleted.rowCount === 0) {
+    return { status: 404, error: 'Vinculo nao encontrado.' }
+  }
+
+  return { status: 204 }
+}
+
 app.get('/api/health', (_, res) => {
   res.json({ ok: true })
+})
+
+app.get('/api/users/:cpf/dashboard', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!requireSelfAccess(req, res, cpf)) return
+  const dashboard = await getProfileDashboard(cpf, String(req.query?.dayKey || getTodayKey()))
+
+  if (!dashboard) {
+    return res.status(404).json({ error: 'Usuario nao encontrado.' })
+  }
+
+  return res.json(dashboard)
+})
+
+app.get('/api/users/:cpf/reports', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!requireSelfAccess(req, res, cpf)) return
+
+  const period = String(req.query?.period || 'weekly')
+  const report = await getTreatmentReport(cpf, period)
+
+  return res.json({ report })
+})
+
+app.post('/api/users/:cpf/relations/link', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!requireSelfAccess(req, res, cpf)) return
+  const identifier = String(req.body?.identifier || '').trim()
+
+  if (!identifier) {
+    return res.status(400).json({ error: 'Informe um codigo, CPF ou e-mail para vincular.' })
+  }
+
+  const result = await linkCaregiverProfile(cpf, identifier)
+  if (result.error) {
+    return res.status(result.status).json({ error: result.error })
+  }
+
+  return res.status(result.status).json({ linked: true, relation: result.linked })
+})
+
+app.delete('/api/users/:cpf/relations/:linkedCpf', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  const linkedCpf = cleanCpf(req.params.linkedCpf)
+  if (!requireSelfAccess(req, res, cpf)) return
+
+  const result = await unlinkCaregiverProfile(cpf, linkedCpf)
+  if (result.error) {
+    return res.status(result.status).json({ error: result.error })
+  }
+
+  return res.status(result.status).send()
 })
 
 app.get('/api/medications/search', async (req, res) => {
@@ -111,7 +682,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const result = await query(
-    'SELECT cpf, password, name, phone, email, caregiver FROM users WHERE cpf = $1 LIMIT 1',
+    'SELECT cpf, password, name, phone, email, caregiver, role, invite_code FROM users WHERE cpf = $1 LIMIT 1',
     [cpf]
   )
 
@@ -137,16 +708,30 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'CPF ou senha incorretos.' })
   }
 
-  return res.json({ user: toPublicUser(user) })
+  return res.json({ user: toPublicUser(user), token: createSession(user) })
+})
+
+app.post('/api/auth/logout', (req, res) => {
+  const session = getSessionFromRequest(req)
+  if (session?.token) {
+    activeSessions.delete(session.token)
+  }
+
+  return res.status(204).send()
 })
 
 app.post('/api/auth/register', async (req, res) => {
   const cpf = cleanCpf(req.body?.cpf)
   const password = String(req.body?.password || '')
   const name = String(req.body?.name || '').trim().toUpperCase()
+  const role = normalizeRole(req.body?.role)
 
   if (!cpf || !password || !name) {
     return res.status(400).json({ error: 'Nome, CPF e senha sao obrigatorios.' })
+  }
+
+  if (!PROFILE_ROLES.has(role)) {
+    return res.status(400).json({ error: 'Escolha um tipo de perfil valido.' })
   }
 
   const exists = await query('SELECT 1 FROM users WHERE cpf = $1', [cpf])
@@ -155,19 +740,31 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+  const inviteCode = generateInviteCode()
 
-  const inserted = await query(
-    `INSERT INTO users (cpf, password, name)
-     VALUES ($1, $2, $3)
-     RETURNING cpf, name, phone, email, caregiver`,
-    [cpf, hashedPassword, name]
+  await query(
+    `INSERT INTO users (cpf, password, name, role, invite_code)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [cpf, hashedPassword, name, role, inviteCode]
+  )
+  await query(
+    `UPDATE users
+     SET role = $2, invite_code = $3
+     WHERE cpf = $1`,
+    [cpf, role, inviteCode]
   )
 
-  return res.status(201).json({ user: toPublicUser(inserted.rows[0]) })
+  const userResult = await query(
+    'SELECT cpf, name, phone, email, caregiver, role, invite_code FROM users WHERE cpf = $1 LIMIT 1',
+    [cpf]
+  )
+
+  return res.status(201).json({ user: toPublicUser(userResult.rows[0]), token: createSession(userResult.rows[0]) })
 })
 
 app.patch('/api/users/:cpf', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
+  if (!requireSelfAccess(req, res, cpf)) return
   const name = typeof req.body?.name === 'string' ? req.body.name.trim().toUpperCase() : null
   const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : null
   const email = typeof req.body?.email === 'string' ? req.body.email.trim() : null
@@ -182,7 +779,7 @@ app.patch('/api/users/:cpf', async (req, res) => {
       email = COALESCE($4, email),
       caregiver = CASE WHEN $5 THEN $6::jsonb ELSE caregiver END
      WHERE cpf = $1
-     RETURNING cpf, name, phone, email, caregiver`,
+     RETURNING cpf, name, phone, email, caregiver, role, invite_code`,
     [cpf, name, phone, email, hasCaregiver, caregiverPayload]
   )
 
@@ -195,6 +792,7 @@ app.patch('/api/users/:cpf', async (req, res) => {
 
 app.get('/api/users/:cpf/medications', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
+  if (!requireSelfAccess(req, res, cpf)) return
   const dayKey = String(req.query?.dayKey || getTodayKey())
 
   const result = await query(
@@ -203,6 +801,9 @@ app.get('/api/users/:cpf/medications', async (req, res) => {
       m.name,
       m.amount,
       m.unit,
+      m.treatment_days AS "treatmentDays",
+      m.start_date AS "startDate",
+      m.end_date AS "endDate",
       COALESCE(
         CASE
           WHEN m.amount IS NOT NULL AND m.unit IS NOT NULL THEN concat(m.amount::text, ' ', m.unit)
@@ -219,6 +820,7 @@ app.get('/api/users/:cpf/medications', async (req, res) => {
       AND mi.user_cpf = m.user_cpf
       AND mi.day_key = $2
     WHERE m.user_cpf = $1
+      AND $2::date BETWEEN m.start_date AND m.end_date
     ORDER BY m.time ASC`,
     [cpf, dayKey]
   )
@@ -233,9 +835,11 @@ app.get('/api/users/:cpf/medications', async (req, res) => {
 
 app.post('/api/users/:cpf/medications', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
+  if (!requireSelfAccess(req, res, cpf)) return
   const name = String(req.body?.name || '').trim().toUpperCase()
   const amountRaw = String(req.body?.amount ?? '').trim()
   const unit = String(req.body?.unit || '').trim().toLowerCase()
+  const treatmentDays = Number(req.body?.treatmentDays || req.body?.durationDays || 0)
   const rawTimes = Array.isArray(req.body?.times)
     ? req.body.times
     : req.body?.time
@@ -246,12 +850,20 @@ app.post('/api/users/:cpf/medications', async (req, res) => {
   const allowedUnits = new Set(['mg', 'ml', 'g', 'ui', 'comprimido(s)', 'gota(s)', 'cápsula(s)', 'capsula(s)', 'unidade(s)'])
   const normalizedUnit = unit.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
-  if (!name || !Number.isFinite(amount) || amount <= 0 || !unit || times.length === 0) {
-    return res.status(400).json({ error: 'Nome, quantidade, unidade e horario sao obrigatorios.' })
+  if (!name || !Number.isFinite(amount) || amount <= 0 || !unit || times.length === 0 || !Number.isInteger(treatmentDays) || treatmentDays <= 0) {
+    return res.status(400).json({ error: 'Nome, quantidade, unidade, horario e dias de tratamento sao obrigatorios.' })
   }
 
   if (!allowedUnits.has(normalizedUnit)) {
     return res.status(400).json({ error: 'Unidade invalida.' })
+  }
+
+  if (times.some((time) => !isValidTime(time))) {
+    return res.status(400).json({ error: 'Informe horarios no formato HH:mm.' })
+  }
+
+  if (treatmentDays > 365) {
+    return res.status(400).json({ error: 'O tratamento deve ter no maximo 365 dias.' })
   }
 
   const inserted = await withDbTransaction(async (client) => {
@@ -261,10 +873,10 @@ app.post('/api/users/:cpf/medications', async (req, res) => {
       const id = crypto.randomUUID()
       const dose = formatDose(amountRaw, unit)
       const result = await client.query(
-        `INSERT INTO medications (id, user_cpf, name, dose, amount, unit, time)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, name, amount, unit, dose, time, created_at AS "createdAt"`,
-        [id, cpf, name, dose, amount, unit, time]
+        `INSERT INTO medications (id, user_cpf, name, dose, amount, unit, time, treatment_days, start_date, end_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, CURRENT_DATE + ($8::int - 1))
+         RETURNING id, name, amount, unit, dose, time, treatment_days AS "treatmentDays", start_date AS "startDate", end_date AS "endDate", created_at AS "createdAt"`,
+        [id, cpf, name, dose, amount, unit, time, treatmentDays]
       )
 
       created.push({
@@ -285,6 +897,7 @@ app.post('/api/users/:cpf/medications', async (req, res) => {
 app.delete('/api/users/:cpf/medications/:id', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
   const { id } = req.params
+  if (!requireSelfAccess(req, res, cpf)) return
 
   const deleted = await query(
     'DELETE FROM medications WHERE id = $1 AND user_cpf = $2',
@@ -300,6 +913,7 @@ app.delete('/api/users/:cpf/medications/:id', async (req, res) => {
 
 app.post('/api/users/:cpf/medications/:id/toggle-taken', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
+  if (!requireSelfAccess(req, res, cpf)) return
   const medicationId = String(req.params.id)
   const dayKey = String(req.body?.dayKey || getTodayKey())
 
@@ -336,6 +950,15 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Erro interno no servidor.' })
 })
 
-app.listen(port, () => {
-  console.log(`MedHora API em http://localhost:${port}`)
+async function bootstrap() {
+  await ensureProfileSchema()
+
+  app.listen(port, () => {
+    console.log(`MedHora API em http://localhost:${port}`)
+  })
+}
+
+bootstrap().catch((error) => {
+  console.error('Falha ao inicializar a API:', error)
+  process.exit(1)
 })

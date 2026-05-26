@@ -14,6 +14,27 @@
   margin-bottom: 24px;
 }
 
+.profile-hint-card {
+  background: linear-gradient(135deg, rgba(2, 75, 130, 0.08), rgba(76, 196, 122, 0.12));
+  border: 1px solid rgba(2, 75, 130, 0.14);
+  padding: 18px 20px;
+  border-radius: 18px;
+  margin-bottom: 24px;
+}
+
+.profile-hint-card strong {
+  display: block;
+  color: var(--color-primary);
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.profile-hint-card p {
+  margin: 0;
+  color: #3f3f3f;
+  line-height: 1.5;
+}
+
 .create-form label {
   display: block;
   font-size: 16px;
@@ -31,12 +52,31 @@
   transition: border-color 0.2s ease;
 }
 
+.create-form select {
+  width: 100%;
+  padding: 20px;
+  font-size: 18px;
+  border: 2px solid var(--color-muted);
+  border-radius: 16px;
+  background: white;
+}
+
 .create-form input:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 4px rgba(2, 75, 130, 0.14);
 }
 
+.create-form select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(2, 75, 130, 0.14);
+}
+
 .create-form input:disabled {
+  background: #f8f9fa;
+  cursor: not-allowed;
+}
+
+.create-form select:disabled {
   background: #f8f9fa;
   cursor: not-allowed;
 }

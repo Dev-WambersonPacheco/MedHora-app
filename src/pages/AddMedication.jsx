@@ -54,7 +54,8 @@ function AddMedication() {
     name: '',
     amount: '',
     unit: '',
-    baseTime: DEFAULT_TIME
+    baseTime: DEFAULT_TIME,
+    treatmentDays: '7'
   })
   const [selectedMedication, setSelectedMedication] = useState(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -200,13 +201,21 @@ function AddMedication() {
       setError('Informe a quantidade e a unidade da dose.')
       return
     }
+
+    const treatmentDays = Number(form.treatmentDays)
+    if (!Number.isInteger(treatmentDays) || treatmentDays <= 0 || treatmentDays > 365) {
+      setLoading(false)
+      setError('Informe a duração do tratamento entre 1 e 365 dias.')
+      return
+    }
     
     try {
       await addMedication({
         name: form.name.trim().toUpperCase(),
         amount,
         unit,
-        times
+        times,
+        treatmentDays
       })
       navigate('/horarios')
     } catch (error) {
@@ -358,6 +367,27 @@ function AddMedication() {
             <button type="button" className="add-time-btn" onClick={addTimeRow} disabled={loading}>
               + Adicionar horário
             </button>
+          </div>
+
+          <div className="input-group">
+            <label>Duração do tratamento:</label>
+            <div className="duration-inline">
+              <input
+                type="number"
+                min="1"
+                max="365"
+                inputMode="numeric"
+                value={form.treatmentDays}
+                onChange={(e) => handleChange('treatmentDays', e.target.value.replace(/\D/g, '').slice(0, 3))}
+                required
+                disabled={loading}
+                aria-label="Dias de duração do tratamento"
+              />
+              <span>dias</span>
+            </div>
+            <div className="dose-preview">
+              O tratamento fica ativo por esse período e depois sai automaticamente da lista do dia.
+            </div>
           </div>
 
           {error && <div className="error">{error}</div>}

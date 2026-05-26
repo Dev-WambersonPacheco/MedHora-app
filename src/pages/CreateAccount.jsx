@@ -8,7 +8,8 @@ function CreateAccount() {
   const [form, setForm] = useState({
     name: '',
     cpf: '',
-    password: ''
+    password: '',
+    role: 'idoso'
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -44,6 +45,23 @@ function CreateAccount() {
       <Header title="Criar Conta" />
       <div className="page-content">
         <form onSubmit={handleSubmit} className="create-form">
+          <div className="profile-hint-card">
+            <strong>Escolha o tipo de conta</strong>
+            <p>O idoso pode vincular cuidadores e o cuidador pode acompanhar mais de um idoso.</p>
+          </div>
+
+          <div className="input-group">
+            <label>Tipo de perfil:</label>
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              disabled={loading}
+            >
+              <option value="idoso">Idoso</option>
+              <option value="cuidador">Cuidador</option>
+            </select>
+          </div>
+
           <div className="input-group">
             <label>Nome Completo:</label>
             <input

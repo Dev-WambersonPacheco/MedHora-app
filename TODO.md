@@ -41,3 +41,25 @@
 ## Banco de Dados
 - [x] Conectar o projeto ao PostgreSQL local com o usuário pacheco
 - [x] Criar e usar o schema medhora_app como dono do app
+
+## Arquitetura e Segurança
+- [x] Documentar arquitetura web/mobile, fluxo cuidador/idoso e modelo de dados em docs/ARCHITECTURE.md
+- [x] Manter frontend consumindo PostgreSQL somente via API
+- [x] Criar perfis idoso/cuidador com vínculo explícito
+- [x] Adicionar confirmação antes de excluir medicamento
+- [x] Expirar sessões e invalidar token no logout
+- [ ] Persistir lembretes do cuidador no PostgreSQL
+- [ ] Criar logs de auditoria para ações sensíveis
+- [ ] Adicionar migrações versionadas para produção
+- [x] Configurar CORS por ambiente antes do deploy
+- [ ] Planejar app Expo/React Native consumindo a mesma API
+
+## Acompanhamento de Tratamento
+- [x] Mostrar idosos cadastrados na tela inicial do cuidador
+- [x] Adicionar acesso rápido ao status de medicamentos por idoso
+- [x] Separar Horários do cuidador por Próximos, Concluídos e Não tomados
+- [x] Separar Horários do idoso por Não tomados, Tomados e Próximos
+- [x] Permitir navegação lateral por toque entre abas de horários
+- [x] Exigir duração em dias no cadastro de medicamentos
+- [x] Controlar período ativo do medicamento por data inicial e final
+- [x] Gerar relatório semanal e mensal para cuidadores
