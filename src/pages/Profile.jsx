@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
 import { api } from '../services/api.js'
 import './Profile.css'
-import { formatCpf } from '../utils/cpf.js'
+import { formatCpf, cleanCpf } from '../utils/cpf.js'
 
 function Profile() {
   const { user, logout } = useAuth()
@@ -62,7 +62,11 @@ function Profile() {
     setLinking(true)
     setMessage('')
     try {
-      await api.linkUserProfile(user.cpf, identifier.trim())
+      // se o identificador for um CPF formatado ou apenas digitos, envie o CPF limpo
+      const raw = identifier.trim()
+      const onlyDigits = raw.replace(/\D/g, '')
+      const payloadIdentifier = onlyDigits ? cleanCpf(onlyDigits) : raw
+      await api.linkUserProfile(user.cpf, payloadIdentifier)
       setIdentifier('')
       setMessage(isCaregiver ? 'Idoso vinculado com sucesso.' : 'Cuidador vinculado com sucesso.')
       await loadDashboard()
@@ -142,7 +146,16 @@ function Profile() {
             <input
               type="text"
               value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                // se o usuário está digitando apenas dígitos, aplicar máscara de CPF
+                const digits = String(v).replace(/\D/g, '')
+                if (digits) {
+                  setIdentifier(formatCpf(digits))
+                } else {
+                  setIdentifier(v)
+                }
+              }}
               placeholder={linkPlaceholder}
               disabled={linking}
             />
