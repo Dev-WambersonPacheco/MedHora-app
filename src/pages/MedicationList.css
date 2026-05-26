@@ -1,5 +1,39 @@
 .med-list-page {
-  background: #f8f9fa;
+  background: var(--color-bg);
+}
+
+.med-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.summary-pill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.summary-pill.pending {
+  background: #fff4d8;
+  color: #8a5b00;
+}
+
+.summary-pill.completed {
+  background: #e9f8ee;
+  color: #25603b;
+}
+
+.med-section {
+  margin-bottom: 24px;
+}
+
+.med-section h2 {
+  font-size: 22px;
+  margin-bottom: 14px;
+  color: var(--color-primary);
 }
 
 .med-list {
@@ -20,14 +54,22 @@
   border-left: 6px solid transparent;
 }
 
+.med-card.completed-card {
+  border-left-color: var(--color-success);
+}
+
+.med-card.pending-card {
+  border-left-color: var(--color-pending);
+}
+
 .med-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
 }
 
 .med-card input:checked + .checkmark {
-  background: linear-gradient(135deg, #00c851, #00b140);
-  border-color: #00c851;
+  background: linear-gradient(135deg, var(--color-success), #3f9f43);
+  border-color: var(--color-success);
 }
 
 .med-card input:checked ~ .med-info {
@@ -48,7 +90,7 @@
 .checkmark {
   width: 32px;
   height: 32px;
-  border: 3px solid #e0e0e0;
+  border: 3px solid var(--color-muted);
   border-radius: 50%;
   display: block;
   transition: all 0.3s ease;
@@ -77,10 +119,40 @@
   transition: opacity 0.3s ease;
 }
 
+.med-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.med-status,
+.med-next-dose {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-pending {
+  background: #fff4d8;
+  color: #8a5b00;
+}
+
+.status-completed {
+  background: #e9f8ee;
+  color: #25603b;
+}
+
+.med-next-dose {
+  background: #f3f5f7;
+  color: #47515b;
+}
+
 .med-name {
   font-size: 22px;
   font-weight: 700;
-  color: #333;
+  color: var(--color-text);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -88,22 +160,93 @@
 
 .med-dose {
   font-size: 18px;
-  color: #666;
+  color: #4f4f4f;
   font-weight: 500;
 }
 
 .med-time {
   font-size: 28px;
   font-weight: 800;
-  color: #0fa68c;
+  color: var(--color-pending);
   min-width: 80px;
   text-align: right;
+}
+
+.med-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.delete-btn {
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #ffe9ea;
+  color: #b42318;
+  font-weight: 700;
+}
+
+.delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+
+.delete-modal {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.24);
+}
+
+.delete-modal h3 {
+  font-size: 24px;
+  margin-bottom: 12px;
+  color: var(--color-primary);
+}
+
+.delete-modal p {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #47515b;
+  margin-bottom: 20px;
+}
+
+.delete-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-cancel,
+.btn-confirm-delete {
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-weight: 700;
+}
+
+.btn-cancel {
+  background: #eef6fc;
+  color: var(--color-primary);
+}
+
+.btn-confirm-delete {
+  background: #b42318;
+  color: white;
 }
 
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: #4f4f4f;
 }
 
 .empty-state .empty-icon {
@@ -115,7 +258,7 @@
   font-size: 24px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #333;
+  color: var(--color-text);
 }
 
 .empty-state p {
@@ -135,5 +278,24 @@
   
   .med-time {
     font-size: 24px;
+  }
+
+  .med-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .med-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .med-time {
+    text-align: left;
+    min-width: auto;
+  }
+
+  .delete-modal-actions {
+    flex-direction: column;
   }
 }

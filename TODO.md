@@ -1,39 +1,43 @@
 # MedHora App - TODO
 
 ## Setup
-- [ ] Criar package.json com dependências (React, Vite, React Router, Lucide)
-- [ ] Criar vite.config.js
-- [ ] Criar index.html
-- [ ] Criar public/manifest.json (PWA)
-- [ ] Criar public/sw.js (Service Worker)
+- [x] Criar package.json com dependências (React, Vite, React Router, Lucide)
+- [x] Criar vite.config.js
+- [x] Criar index.html
+- [x] Criar public/manifest.json (PWA)
+- [x] Criar public/sw.js (Service Worker)
 
 ## Core
-- [ ] src/main.jsx - Entry point
-- [ ] src/App.jsx - Rotas
-- [ ] src/index.css - Estilos globais
+- [x] src/main.jsx - Entry point
+- [x] src/App.jsx - Rotas
+- [x] src/index.css - Estilos globais
 
 ## Contexts
-- [ ] src/context/AuthContext.jsx
-- [ ] src/context/MedicationContext.jsx
+- [x] src/context/AuthContext.jsx
+- [x] src/context/MedicationContext.jsx
 
 ## Utils
-- [ ] src/utils/notifications.js
+- [x] src/utils/notifications.js
 
 ## Components
-- [ ] src/components/BottomNav.jsx + css
-- [ ] src/components/Header.jsx + css
+- [x] src/components/BottomNav.jsx + css
+- [x] src/components/Header.jsx + css
 
 ## Pages
-- [ ] src/pages/Login.jsx + css
-- [ ] src/pages/CreateAccount.jsx + css
-- [ ] src/pages/Home.jsx + css
-- [ ] src/pages/AddMedication.jsx + css
-- [ ] src/pages/MedicationList.jsx + css
-- [ ] src/pages/Reminders.jsx + css
-- [ ] src/pages/Caregiver.jsx + css
-- [ ] src/pages/Profile.jsx + css
+- [x] src/pages/Login.jsx + css
+- [x] src/pages/CreateAccount.jsx + css
+- [x] src/pages/Home.jsx + css
+- [x] src/pages/AddMedication.jsx + css
+- [x] src/pages/MedicationList.jsx + css
+- [x] src/pages/Reminders.jsx + css
+- [x] src/pages/Caregiver.jsx + css
+- [x] src/pages/Profile.jsx + css
 
 ## Testing
-- [ ] npm install
-- [ ] npm run dev
-- [ ] Validar telas no browser
+- [x] npm install
+- [x] npm run dev
+- [x] Validar telas no browser
+
+## Banco de Dados
+- [x] Conectar o projeto ao PostgreSQL local com o usuário pacheco
+- [x] Criar e usar o schema medhora_app como dono do app

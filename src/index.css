@@ -5,6 +5,23 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+:root {
+  --color-primary: #024b82;
+  --color-secondary: #6fd16a;
+  --color-text: #000000;
+  --color-bg: #f5f5f5;
+  --color-white: #ffffff;
+  --color-error: #be0404;
+  --color-pending: #ffc107;
+  --color-success: #4caf50;
+  --color-muted: #d3d3d3;
+
+  --card-hydration: #00bcd4;
+  --card-food: #ff9800;
+  --card-activity: #ffc107;
+  --card-night: #3f51b5;
+}
+
 html, body {
   width: 100%;
   min-height: 100vh;
@@ -13,8 +30,8 @@ html, body {
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #f0f0f0;
-  color: #222;
+  background: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -30,7 +47,7 @@ body {
   width: 100%;
   max-width: 450px;
   min-height: 100vh;
-  background: #ffffff;
+  background: var(--color-white);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -68,7 +85,7 @@ a {
 .page-title {
   font-size: 34px;
   font-weight: 400;
-  color: #0fa68c;
+  color: var(--color-primary);
   letter-spacing: 1px;
   margin-bottom: 20px;
 }
@@ -76,7 +93,7 @@ a {
 .back-btn {
   background: transparent;
   border: none;
-  color: #4285f4;
+  color: var(--color-primary);
   padding: 0;
   margin-bottom: 8px;
   display: flex;
@@ -86,8 +103,8 @@ a {
 
 .screen-header {
   padding: 20px 20px 16px 20px;
-  border-bottom: 1px solid #e5e5e5;
-  background: #fff;
+  border-bottom: 1px solid var(--color-muted);
+  background: var(--color-white);
 }
 
 /* Scrollbar */

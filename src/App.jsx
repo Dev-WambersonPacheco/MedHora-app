@@ -33,6 +33,7 @@ function App() {
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/adicionar" element={<ProtectedRoute><AddMedication /></ProtectedRoute>} />
         <Route path="/horarios" element={<ProtectedRoute><MedicationList /></ProtectedRoute>} />
+        <Route path="/rotina" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
         <Route path="/lembretes" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
         <Route path="/cuidador" element={<ProtectedRoute><Caregiver /></ProtectedRoute>} />
         <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

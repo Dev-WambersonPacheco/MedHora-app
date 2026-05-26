@@ -5,18 +5,28 @@
   "type": "module",
   "description": "MedHora - Aplicativo de lembretes de medicamentos para idosos",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "node --watch server/index.js",
+    "server": "node server/index.js",
+    "db:init": "psql \"$DATABASE_URL\" -f server/schema.sql",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "lucide-react": "^0.454.0",
+    "pg": "^8.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.27.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",
+    "concurrently": "^9.2.1",
     "vite": "^5.4.10"
   }
 }

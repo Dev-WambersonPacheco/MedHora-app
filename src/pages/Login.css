@@ -1,5 +1,5 @@
 .login-page {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, var(--color-bg) 0%, #dfeaf5 100%);
   min-height: 100vh;
 }
 
@@ -11,7 +11,7 @@
 .logo h1 {
   font-size: 36px;
   font-weight: 300;
-  background: linear-gradient(135deg, #1566a8 0%, #4cc47a 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -34,7 +34,7 @@
   display: block;
   font-size: 16px;
   font-weight: 500;
-  color: #333;
+  color: var(--color-text);
   margin-bottom: 8px;
 }
 
@@ -42,14 +42,14 @@
   width: 100%;
   padding: 20px;
   font-size: 20px;
-  border: 2px solid #e5e5e5;
+  border: 2px solid var(--color-muted);
   border-radius: 16px;
   transition: border-color 0.2s ease;
 }
 
 .input-group input:focus {
-  border-color: #9c27b0;
-  box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(2, 75, 130, 0.14);
 }
 
 .input-group input:disabled {
@@ -60,13 +60,13 @@
 .input-group small {
   display: block;
   font-size: 14px;
-  color: #666;
+  color: #3f3f3f;
   margin-top: 4px;
 }
 
 .error {
-  background: #ffebee;
-  color: #c62828;
+  background: #ffe5e5;
+  color: var(--color-error);
   padding: 16px;
   border-radius: 12px;
   margin-bottom: 24px;
@@ -79,7 +79,7 @@
   padding: 20px;
   font-size: 20px;
   font-weight: 600;
-  background: linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1e5f98 100%);
   color: white;
   border-radius: 16px;
   transition: all 0.2s ease;
@@ -89,7 +89,7 @@
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(156, 39, 176, 0.4);
+  box-shadow: 0 10px 25px rgba(2, 75, 130, 0.35);
 }
 
 .btn-primary:disabled {
@@ -109,8 +109,8 @@
   padding: 16px;
   font-size: 16px;
   background: rgba(255, 255, 255, 0.8);
-  color: #666;
-  border: 2px solid #e5e5e5;
+  color: #333;
+  border: 2px solid var(--color-muted);
   border-radius: 16px;
   transition: all 0.2s ease;
   display: flex;
@@ -121,8 +121,8 @@
 
 .btn-secondary:hover:not(:disabled) {
   background: white;
-  border-color: #9c27b0;
-  color: #9c27b0;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .btn-secondary:disabled {
@@ -135,4 +135,32 @@
     padding: 24px;
     margin: 0 8px;
   }
+}
+
+/* Acessibility mode: bigger fonts and higher contrast for TalkBack users */
+.a11y-mode {
+  font-size: 1.15rem;
+}
+
+.a11y-mode .login-form {
+  padding: 36px;
+}
+
+.a11y-mode .input-group label,
+.a11y-mode .input-group small,
+.a11y-mode .error,
+.a11y-mode .btn-primary,
+.a11y-mode .btn-secondary {
+  font-size: 1.25rem;
+}
+
+.a11y-mode .btn-secondary {
+  background: #fff;
+  color: #111;
+  border-color: #111;
+}
+
+.btn-secondary:focus {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
 }

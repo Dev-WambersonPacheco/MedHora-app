@@ -3,10 +3,40 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useMedications } from '../context/MedicationContext.jsx'
 import Header from '../components/Header.jsx'
 import './Home.css'
+import { requestNotificationPermission, showNotification } from '../utils/notifications'
 
 function Home() {
   const { user } = useAuth()
   const { pendingCount } = useMedications()
+
+  async function testAlarm() {
+    try {
+      await requestNotificationPermission()
+      // notificação principal
+      showNotification('⏰ Teste de Alarme', 'Este é um teste de alarme - MedHora')
+
+      // vibração quando suportada
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300])
+
+      // som curto via Web Audio
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const o = ctx.createOscillator()
+        const g = ctx.createGain()
+        o.type = 'sine'
+        o.frequency.value = 880
+        g.gain.value = 0.1
+        o.connect(g)
+        g.connect(ctx.destination)
+        o.start()
+        setTimeout(() => { o.stop(); ctx.close() }, 400)
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      console.error('Teste de alarme falhou', e)
+    }
+  }
 
   return (
     <div className="home-page">
@@ -18,14 +48,14 @@ function Home() {
         </div>
 
         <div className="pending-meds">
-          <div className="pending-card">
+          <Link to="/horarios" className="pending-card pending-link">
             <div className="pending-icon">🔔</div>
             <div className="pending-info">
-              <div className="pending-title">Medicamentos</div>
-              <div className="pending-subtitle">PENDENTES</div>
+              <div className="pending-title">Medicamentos pendentes</div>
+              <div className="pending-subtitle">TOQUE PARA ABRIR</div>
               <span className="pending-count">{pendingCount}</span>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className="action-buttons">
@@ -38,17 +68,21 @@ function Home() {
           </Link>
 
           <div className="row-buttons">
-            <Link to="/lembretes" className="btn-secondary-large">
-              ROTINA
-            </Link>
             <Link to="/cuidador" className="btn-secondary-large">
-              CUIDADOR
+              LEMBRETES
+            </Link>
+            <Link to="/rotina" className="btn-secondary-large">
+              ROTINA
             </Link>
           </div>
 
           <Link to="/horarios" className="btn-reminder">
-            🔔 LEMBRETE
+            🔔 MEDICAMENTOS PENDENTES
           </Link>
+
+          <button className="btn-test-alarm" onClick={testAlarm} aria-label="Testar alarme">
+            Testar Alarme
+          </button>
         </div>
       </div>
     </div>

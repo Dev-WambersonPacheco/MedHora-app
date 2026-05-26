@@ -13,6 +13,7 @@ function EditProfile() {
     email: ''
   })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
@@ -28,14 +29,20 @@ function EditProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
     setSuccess('')
 
     try {
-      await updateUser(form)
-      setSuccess('Perfil atualizado com sucesso!')
-      setTimeout(() => navigate('/perfil'), 1500)
+      const result = await updateUser(form)
+      if (result.success) {
+        setSuccess('Perfil atualizado com sucesso!')
+        setTimeout(() => navigate('/perfil'), 1500)
+      } else {
+        setError(result.error || 'Nao foi possivel atualizar o perfil.')
+      }
     } catch (error) {
       console.error('Erro ao atualizar:', error)
+      setError('Nao foi possivel atualizar o perfil.')
     } finally {
       setLoading(false)
     }
@@ -77,6 +84,7 @@ function EditProfile() {
             />
           </div>
 
+          {error && <div className="error">{error}</div>}
           {success && <div className="success">{success}</div>}
 
           <div className="form-actions">

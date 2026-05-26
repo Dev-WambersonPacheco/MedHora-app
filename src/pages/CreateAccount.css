@@ -1,5 +1,5 @@
 .create-account-page {
-  background: linear-gradient(135deg, #fff3e0 0%, #fce4ec 100%);
+  background: linear-gradient(135deg, var(--color-bg) 0%, #e9f3fb 100%);
 }
 
 .create-form {
@@ -18,7 +18,7 @@
   display: block;
   font-size: 16px;
   font-weight: 500;
-  color: #333;
+  color: var(--color-text);
   margin-bottom: 8px;
 }
 
@@ -26,14 +26,14 @@
   width: 100%;
   padding: 20px;
   font-size: 18px;
-  border: 2px solid #e5e5e5;
+  border: 2px solid var(--color-muted);
   border-radius: 16px;
   transition: border-color 0.2s ease;
 }
 
 .create-form input:focus {
-  border-color: #ff9800;
-  box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(2, 75, 130, 0.14);
 }
 
 .create-form input:disabled {
@@ -42,8 +42,8 @@
 }
 
 .create-form .error {
-  background: #ffebee;
-  color: #c62828;
+  background: #ffe5e5;
+  color: var(--color-error);
   padding: 16px;
   border-radius: 12px;
   margin-bottom: 24px;
@@ -56,7 +56,7 @@
   padding: 20px;
   font-size: 20px;
   font-weight: 600;
-  background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1e5f98 100%);
   color: white;
   border-radius: 16px;
   text-transform: uppercase;
@@ -66,15 +66,15 @@
 
 .create-form .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(255, 152, 0, 0.4);
+  box-shadow: 0 10px 25px rgba(2, 75, 130, 0.35);
 }
 
 .btn-back {
   width: 100%;
   padding: 16px;
   background: transparent;
-  color: #666;
-  border: 2px solid #e5e5e5;
+  color: #3f3f3f;
+  border: 2px solid var(--color-muted);
   border-radius: 16px;
   font-size: 16px;
   font-weight: 500;
@@ -83,8 +83,8 @@
 
 .btn-back:hover:not(:disabled) {
   background: #f8f9fa;
-  border-color: #ff9800;
-  color: #ff9800;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .btn-back:disabled {
