@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
+import ProfileTypeToggle from '../components/ProfileTypeToggle.jsx'
 import './CreateAccount.css'
 import { formatCpf } from '../utils/cpf.js'
 
@@ -47,14 +48,8 @@ function CreateAccount() {
 
           <div className="input-group">
             <label>Tipo de perfil:</label>
-            <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              disabled={loading}
-            >
-              <option value="idoso">Idoso</option>
-              <option value="cuidador">Cuidador</option>
-            </select>
+            <ProfileTypeToggle value={form.role} onChange={(role) => setForm({ ...form, role })} disabled={loading} />
+            <small>Toque em uma opção para definir o tipo de conta.</small>
           </div>
 
           <div className="input-group">
