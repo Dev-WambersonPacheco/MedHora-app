@@ -1,4 +1,4 @@
-// Utilitários para notificações de medicamentos
+// Utilitarios para notificacoes de medicamentos
 
 export async function requestNotificationPermission() {
   if (!('Notification' in window)) {
@@ -27,7 +27,52 @@ export function showNotification(title, body) {
   }
 }
 
-// Calcula milissegundos até o próximo horário HH:MM
+export function playAlarmTone() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return
+
+    const context = new AudioContext()
+    const masterGain = context.createGain()
+    const now = context.currentTime
+    const notes = [
+      { frequency: 880, start: 0, duration: 0.16 },
+      { frequency: 1175, start: 0.22, duration: 0.16 },
+      { frequency: 880, start: 0.44, duration: 0.16 },
+      { frequency: 1175, start: 0.66, duration: 0.24 }
+    ]
+
+    masterGain.gain.setValueAtTime(0.0001, now)
+    masterGain.gain.exponentialRampToValueAtTime(0.12, now + 0.03)
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.05)
+    masterGain.connect(context.destination)
+
+    notes.forEach(({ frequency, start, duration }) => {
+      const oscillator = context.createOscillator()
+      const noteGain = context.createGain()
+      const noteStart = now + start
+      const noteEnd = noteStart + duration
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(frequency, noteStart)
+      noteGain.gain.setValueAtTime(0.0001, noteStart)
+      noteGain.gain.exponentialRampToValueAtTime(1, noteStart + 0.02)
+      noteGain.gain.exponentialRampToValueAtTime(0.0001, noteEnd)
+
+      oscillator.connect(noteGain)
+      noteGain.connect(masterGain)
+      oscillator.start(noteStart)
+      oscillator.stop(noteEnd + 0.02)
+    })
+
+    window.setTimeout(() => {
+      context.close().catch(() => {})
+    }, 1200)
+  } catch {
+    // ignore audio failures on unsupported browsers
+  }
+}
+
 export function msUntil(timeStr) {
   const [h, m] = timeStr.split(':').map(Number)
   const now = new Date()
@@ -37,34 +82,58 @@ export function msUntil(timeStr) {
   return target.getTime() - now.getTime()
 }
 
+function msUntilTodayOrNow(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number)
+  const now = new Date()
+  const target = new Date()
+  target.setHours(h, m, 0, 0)
+  return Math.max(0, target.getTime() - now.getTime())
+}
+
 const scheduledTimers = new Map()
 
 function clearScheduledTimer(timer) {
-  if (timer && timer.type === 'timeout') {
+  if (timer?.type === 'timeout') {
     clearTimeout(timer.id)
+  }
+
+  if (timer?.type === 'repeat') {
+    if (timer.timeoutId) clearTimeout(timer.timeoutId)
+    if (timer.intervalId) clearInterval(timer.intervalId)
   }
 }
 
-export function scheduleMedicationNotification(med, onTrigger) {
+function triggerMedicationAlarm(med, onTrigger) {
+  showNotification(
+    'Hora do Medicamento!',
+    `${med.name} - ${med.dose}`
+  )
+  if (navigator.vibrate) navigator.vibrate([180, 70, 180, 70, 260])
+  playAlarmTone()
+  if (onTrigger) onTrigger(med)
+}
+
+export function scheduleMedicationNotification(med, onTrigger, options = {}) {
   if (!med || !med.time) return
   const key = `${med.id}-${med.time}`
+  const repeatUntilCleared = !!options.repeatUntilCleared
+  const repeatIntervalMs = Number(options.repeatIntervalMs || 60 * 1000)
 
-  // Limpa timer anterior
   if (scheduledTimers.has(key)) {
     clearScheduledTimer(scheduledTimers.get(key))
   }
 
-  const delay = msUntil(med.time)
+  const delay = repeatUntilCleared ? msUntilTodayOrNow(med.time) : msUntil(med.time)
 
-  // Tenta agendar via Service Worker Notification Triggers (Chrome experimental)
   const tryScheduleViaSW = async () => {
+    if (repeatUntilCleared) return false
     if (!('serviceWorker' in navigator) || typeof window.TimestampTrigger === 'undefined') return false
     try {
       const reg = await navigator.serviceWorker.getRegistration()
       if (!reg || typeof reg.showNotification !== 'function') return false
 
       const when = Date.now() + delay
-      await reg.showNotification('💊 Hora do Medicamento!', {
+      await reg.showNotification('Hora do Medicamento!', {
         body: `${med.name} - ${med.dose}`,
         icon: '/icon.svg',
         badge: '/icon.svg',
@@ -75,31 +144,40 @@ export function scheduleMedicationNotification(med, onTrigger) {
         showTrigger: new window.TimestampTrigger(when)
       })
       return true
-    } catch (e) {
-      // agendamento via showTrigger não disponível ou falhou
+    } catch {
       return false
     }
   }
 
-  // Se conseguiu agendar via SW, registra placeholder para permitir cancelamento lógico
   tryScheduleViaSW().then((ok) => {
     if (ok) {
       scheduledTimers.set(key, { type: 'sw' })
       return
     }
 
-    // Fallback: agendamento com setTimeout (funciona enquanto a página estiver aberta)
-    const timer = setTimeout(() => {
-      showNotification(
-        '💊 Hora do Medicamento!',
-        `${med.name} - ${med.dose}`
-      )
-      if (onTrigger) onTrigger(med)
-      // Reagenda para o dia seguinte
+    const timeoutId = setTimeout(() => {
+      triggerMedicationAlarm(med, onTrigger)
+
+      if (repeatUntilCleared) {
+        const activeTimer = scheduledTimers.get(key)
+        if (activeTimer?.type === 'repeat') {
+          activeTimer.intervalId = setInterval(
+            () => triggerMedicationAlarm(med, onTrigger),
+            repeatIntervalMs
+          )
+        }
+        return
+      }
+
       scheduleMedicationNotification(med, onTrigger)
     }, delay)
 
-    scheduledTimers.set(key, { type: 'timeout', id: timer })
+    scheduledTimers.set(
+      key,
+      repeatUntilCleared
+        ? { type: 'repeat', timeoutId, intervalId: null }
+        : { type: 'timeout', id: timeoutId }
+    )
   })
 }
 

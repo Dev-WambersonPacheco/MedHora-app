@@ -1,26 +1,6 @@
-import { requestNotificationPermission, showNotification } from './notifications.js'
+import { playAlarmTone, requestNotificationPermission, showNotification } from './notifications.js'
 
 const timers = new Map()
-
-function playAlertSound() {
-  try {
-    const context = new (window.AudioContext || window.webkitAudioContext)()
-    const oscillator = context.createOscillator()
-    const gain = context.createGain()
-    oscillator.type = 'sine'
-    oscillator.frequency.value = 880
-    gain.gain.value = 0.08
-    oscillator.connect(gain)
-    gain.connect(context.destination)
-    oscillator.start()
-    setTimeout(() => {
-      oscillator.stop()
-      context.close()
-    }, 450)
-  } catch {
-    // ignore audio failures on unsupported browsers
-  }
-}
 
 function scheduleTimer(key, delay, callback) {
   if (timers.has(key)) {
@@ -56,7 +36,7 @@ function resolveDateTime(dateValue, timeValue) {
 export async function triggerAlert({ title, body, onTrigger }) {
   await requestNotificationPermission()
   showNotification(title, body)
-  playAlertSound()
+  playAlarmTone()
   if (typeof onTrigger === 'function') {
     onTrigger()
   }

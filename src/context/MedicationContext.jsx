@@ -12,7 +12,9 @@ const MedicationContext = createContext(null)
 
 function getTodayKey() {
   const d = new Date()
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${month}-${day}`
 }
 
 export function MedicationProvider({ children }) {
@@ -54,12 +56,18 @@ export function MedicationProvider({ children }) {
   // Agendar notificações
   useEffect(() => {
     if (!user) return
+    const dayKey = getTodayKey()
     requestNotificationPermission()
     cancelAll()
     medications.forEach(med => {
-      scheduleMedicationNotification(med)
+      if (!takenMap[`${med.id}_${med.time}_${dayKey}`]) {
+        scheduleMedicationNotification(med, null, {
+          repeatUntilCleared: true,
+          repeatIntervalMs: 60 * 1000
+        })
+      }
     })
-  }, [medications, user])
+  }, [medications, takenMap, user])
 
   const addMedication = (med) => {
     if (!user) {
@@ -70,7 +78,6 @@ export function MedicationProvider({ children }) {
       const createdMedications = response.medications || (response.medication ? [response.medication] : [])
       setMedications(prev => [...prev, ...createdMedications])
       requestNotificationPermission()
-      createdMedications.forEach((medication) => scheduleMedicationNotification(medication))
       return createdMedications.length === 1 ? createdMedications[0] : createdMedications
     })
   }

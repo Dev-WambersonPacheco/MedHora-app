@@ -5,7 +5,7 @@ import Header from '../components/Header.jsx'
 import PasswordField from '../components/PasswordField.jsx'
 import ProfileTypeToggle from '../components/ProfileTypeToggle.jsx'
 import './CreateAccount.css'
-import { formatCpf } from '../utils/cpf.js'
+import { formatCpf, formatPhone } from '../utils/cpf.js'
 
 function CreateAccount() {
   const [form, setForm] = useState({
@@ -90,8 +90,10 @@ function CreateAccount() {
             <input
               type="tel"
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/[^0-9+()\s-]/g, '') })}
+              onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
               placeholder="(11) 99999-9999"
+              inputMode="tel"
+              maxLength={15}
               required
               disabled={loading}
             />

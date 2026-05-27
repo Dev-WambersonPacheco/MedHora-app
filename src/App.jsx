@@ -17,6 +17,13 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+function RoleRoute({ role, children }) {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role !== role) return <Navigate to="/" replace />
+  return children
+}
+
 function App() {
   const { user } = useAuth()
   const location = useLocation()
@@ -35,7 +42,7 @@ function App() {
         <Route path="/horarios" element={<ProtectedRoute><MedicationList /></ProtectedRoute>} />
         <Route path="/rotina" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
         <Route path="/lembretes" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
-        <Route path="/cuidador" element={<ProtectedRoute><Caregiver /></ProtectedRoute>} />
+        <Route path="/cuidador" element={<RoleRoute role="cuidador"><Caregiver /></RoleRoute>} />
         <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/perfil/editar" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
 

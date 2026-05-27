@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 const SESSION_KEY = 'medhora_session'
 
 function readSession() {
@@ -12,14 +12,20 @@ function readSession() {
 
 async function request(path, options = {}) {
   const session = typeof localStorage !== 'undefined' ? readSession() : null
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(session?.token ? { 'x-medhora-token': session.token } : {}),
-      ...(options.headers || {})
-    },
-    ...options
-  })
+  let response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.token ? { 'x-medhora-token': session.token } : {}),
+        ...(options.headers || {})
+      },
+      ...options
+    })
+  } catch {
+    throw new Error('Nao foi possivel conectar ao servidor. Verifique se a API esta ligada e se este dispositivo esta na mesma rede.')
+  }
 
   let payload = null
   try {

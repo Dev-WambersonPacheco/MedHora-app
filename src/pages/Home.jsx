@@ -4,8 +4,9 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useMedications } from '../context/MedicationContext.jsx'
 import Header from '../components/Header.jsx'
 import './Home.css'
-import { requestNotificationPermission, showNotification } from '../utils/notifications'
+import { playAlarmTone, requestNotificationPermission, showNotification } from '../utils/notifications'
 import { api } from '../services/api.js'
+import { formatPhone } from '../utils/cpf.js'
 
 function Home() {
   const { user } = useAuth()
@@ -43,26 +44,13 @@ function Home() {
     try {
       await requestNotificationPermission()
       // notificação principal
-      showNotification('⏰ Teste de Alarme', 'Este é um teste de alarme - MedHora')
+      showNotification('Teste de Alarme', 'Este é um teste de alarme - MedHora')
 
       // vibração quando suportada
-      if (navigator.vibrate) navigator.vibrate([300, 100, 300])
+      if (navigator.vibrate) navigator.vibrate([180, 70, 180, 70, 260])
 
       // som curto via Web Audio
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)()
-        const o = ctx.createOscillator()
-        const g = ctx.createGain()
-        o.type = 'sine'
-        o.frequency.value = 880
-        g.gain.value = 0.1
-        o.connect(g)
-        g.connect(ctx.destination)
-        o.start()
-        setTimeout(() => { o.stop(); ctx.close() }, 400)
-      } catch (e) {
-        // ignore
-      }
+      playAlarmTone()
     } catch (e) {
       console.error('Teste de alarme falhou', e)
     }
@@ -92,6 +80,9 @@ function Home() {
               <Link to="/horarios" className="btn-reminder">
                 HORÁRIOS DOS IDOSOS
               </Link>
+              <Link to="/cuidador" className="btn-reminder">
+                LEMBRETES DO CUIDADOR
+              </Link>
             </div>
 
             {dashboardError && <div className="home-message">{dashboardError}</div>}
@@ -109,7 +100,7 @@ function Home() {
                     <div className="elder-card-main">
                       <h4>{elder.name}</h4>
                       <p>CPF: {elder.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</p>
-                      {elder.phone && <p>Telefone: {elder.phone}</p>}
+                      {elder.phone && <p>Telefone: {formatPhone(elder.phone)}</p>}
                       <div className="elder-status-row">
                         <span className="status-chip danger">Não tomados: {elder.pendingItems?.filter((med) => {
                           const [h = 0, m = 0] = med.time.split(':').map(Number)
@@ -141,7 +132,7 @@ function Home() {
 
         <div className="pending-meds">
           <Link to="/horarios" className="pending-card pending-link">
-            <div className="pending-icon">🔔</div>
+            <div className="pending-icon"></div>
             <div className="pending-info">
               <div className="pending-title">Medicamentos pendentes</div>
               <div className="pending-subtitle">TOQUE PARA ABRIR</div>
@@ -159,17 +150,12 @@ function Home() {
             </div>
           </Link>
 
-          <div className="row-buttons">
-            <Link to="/cuidador" className="btn-secondary-large">
-              LEMBRETES
-            </Link>
-            <Link to="/rotina" className="btn-secondary-large">
-              ROTINA
-            </Link>
-          </div>
+          <Link to="/rotina" className="btn-secondary-large">
+            ROTINA
+          </Link>
 
           <Link to="/horarios" className="btn-reminder">
-            🔔 MEDICAMENTOS PENDENTES
+            MEDICAMENTOS PENDENTES
           </Link>
 
           <button className="btn-test-alarm" onClick={testAlarm} aria-label="Testar alarme">

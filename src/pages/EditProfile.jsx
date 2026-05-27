@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
 import './EditProfile.css'
+import { formatPhone } from '../utils/cpf.js'
 
 function EditProfile() {
   const { user, updateUser } = useAuth()
@@ -20,7 +21,7 @@ function EditProfile() {
     if (user) {
       setForm({
         name: user.name || '',
-        phone: user.phone || '',
+        phone: formatPhone(user.phone || ''),
         email: user.email || ''
       })
     }
@@ -69,9 +70,11 @@ function EditProfile() {
             <input
               type="tel"
               value={form.phone}
-              onChange={(e) => setForm({...form, phone: e.target.value.replace(/[^0-9+()\s-]/g, '')})}
+              onChange={(e) => setForm({...form, phone: formatPhone(e.target.value)})}
               required
               placeholder="(11) 99999-9999"
+              inputMode="tel"
+              maxLength={15}
               disabled={loading}
             />
             <small>Telefone obrigatório para recuperação por SMS.</small>

@@ -6,11 +6,22 @@ import './Reminders.css'
 
 const STORAGE_KEY = 'medhora_routines_v1'
 
-const ICONS = ['💧', '🍽️', '🏃', '🌙', '🧘', '🚶', '📚', '☀️']
-const FREQUENCIES = [
-  { value: 'daily', label: 'Diariamente' },
-  { value: 'interval', label: 'A cada intervalo' }
+const CATEGORIES = [
+  { value: 'agua', label: 'Agua', mark: '🥛' },
+  { value: 'refeicao', label: 'Refeicao', mark: '🥗' },
+  { value: 'movimento', label: 'Movimento', mark: '🚶‍♂️' },
+  { value: 'sono', label: 'Sono', mark: '🛌' },
+  { value: 'bem-estar', label: 'Bem-estar', mark: 'BE' },
+  { value: 'caminhada', label: 'Caminhada', mark: '🚶‍♂️' },
+  { value: 'leitura', label: 'Leitura', mark: '📰' },
+  { value: 'sol', label: 'Sol', mark: '☀' }
 ]
+
+const FREQUENCIES = [
+  { value: 'daily', label: 'Todo dia' },
+  { value: 'interval', label: 'Por intervalo' }
+]
+
 const INTERVAL_OPTIONS = [2, 3, 4, 6]
 
 function makeId() {
@@ -19,7 +30,7 @@ function makeId() {
 
 function emptyForm() {
   return {
-    icon: '💧',
+    category: 'agua',
     title: '',
     description: '',
     time: '08:00',
@@ -39,10 +50,20 @@ function loadItems() {
   }
 }
 
+function minutesFromTime(time = '00:00') {
+  const [hours = 0, minutes = 0] = String(time).split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function getCategory(value) {
+  return CATEGORIES.find((category) => category.value === value) || CATEGORIES[0]
+}
+
 function Routine() {
   const [items, setItems] = useState(() => loadItems())
   const [form, setForm] = useState(emptyForm())
   const [editingId, setEditingId] = useState(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -53,7 +74,16 @@ function Routine() {
   }, [items])
 
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => a.title.localeCompare(b.title))
+    return [...items].sort((a, b) => minutesFromTime(a.time) - minutesFromTime(b.time))
+  }, [items])
+
+  const summary = useMemo(() => {
+    const intervalCount = items.filter((item) => item.frequency === 'interval').length
+    return {
+      total: items.length,
+      daily: items.length - intervalCount,
+      interval: intervalCount
+    }
   }, [items])
 
   const handleChange = (field, value) => {
@@ -63,7 +93,7 @@ function Routine() {
   const handleEdit = (item) => {
     setEditingId(item.id)
     setForm({
-      icon: item.icon,
+      category: item.category || item.icon || 'agua',
       title: item.title,
       description: item.description,
       time: item.time,
@@ -72,24 +102,29 @@ function Routine() {
       amount: item.amount || '',
       unit: item.unit || ''
     })
+    setFormOpen(true)
+    setMessage('')
   }
 
   const resetForm = () => {
     setEditingId(null)
     setForm(emptyForm())
+    setFormOpen(false)
+    setMessage('')
   }
 
   const handleSubmit = (event) => {
     event.preventDefault()
 
     if (!form.title.trim() || !form.description.trim()) {
-      setMessage('Preencha título e descrição da rotina.')
+      setMessage('Preencha titulo e descricao da rotina.')
       return
     }
 
     const payload = {
       id: editingId || makeId(),
-      icon: form.icon,
+      category: form.category,
+      icon: form.category,
       title: form.title.trim().toUpperCase(),
       description: form.description.trim(),
       time: form.time,
@@ -105,7 +140,9 @@ function Routine() {
     })
 
     setMessage(editingId ? 'Rotina atualizada.' : 'Rotina adicionada.')
-    resetForm()
+    setEditingId(null)
+    setForm(emptyForm())
+    setFormOpen(false)
   }
 
   const handleDelete = (id) => {
@@ -117,152 +154,202 @@ function Routine() {
     <div className="routine-page">
       <Header title="ROTINA" />
       <div className="page-content">
-        <section className="routine-hero">
+        <section className="routine-summary">
           <div>
-            <h2>Hábitos do dia</h2>
-            <p>Cadastre água, refeições, exercícios, descanso e o que mais fizer parte da rotina.</p>
+            <span className="routine-eyebrow">Plano diario</span>
+            <h2>Rotina do dia</h2>
           </div>
-          <div className="routine-hero-badge">Notificações automáticas</div>
+          <div className="routine-summary-grid">
+            <div>
+              <strong>{summary.total}</strong>
+              <span>Total</span>
+            </div>
+            <div>
+              <strong>{summary.daily}</strong>
+              <span>Diarias</span>
+            </div>
+            <div>
+              <strong>{summary.interval}</strong>
+              <span>Intervalo</span>
+            </div>
+          </div>
         </section>
 
-        <form className="routine-form" onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label>Ícone do hábito</label>
-            <div className="icon-grid">
-              {ICONS.map((icon) => (
-                <button
-                  key={icon}
-                  type="button"
-                  className={`icon-chip ${form.icon === icon ? 'active' : ''}`}
-                  onClick={() => handleChange('icon', icon)}
-                >
-                  {icon}
-                </button>
-              ))}
+        {message && <div className="routine-message routine-page-message">{message}</div>}
+
+        <section className="routine-list-section">
+          <div className="routine-list-header">
+            <div>
+              <h2>Rotinas cadastradas</h2>
+              <p>{sortedItems.length ? 'Ordenadas pelo horario inicial.' : 'Nenhuma rotina ativa.'}</p>
             </div>
-          </div>
-
-          <div className="input-group">
-            <label>Título</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="Ex.: Beber água"
-            />
-          </div>
-
-          <div className="input-group">
-            <label>Descrição</label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="Ex.: 2 copos ao acordar e antes do almoço"
-            />
-          </div>
-
-          <div className="routine-grid">
-            <div className="input-group">
-              <label>Frequência</label>
-              <select className="field-select" value={form.frequency} onChange={(e) => handleChange('frequency', e.target.value)}>
-                {FREQUENCIES.map((frequency) => (
-                  <option key={frequency.value} value={frequency.value}>{frequency.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="input-group">
-              <label>Horário</label>
-              <input
-                type="time"
-                value={form.time}
-                onChange={(e) => handleChange('time', e.target.value)}
-              />
-            </div>
-
-            {form.frequency === 'interval' && (
-              <div className="input-group">
-                <label>Intervalo</label>
-                <select
-                  className="field-select"
-                  value={form.repeatEveryHours}
-                  onChange={(e) => handleChange('repeatEveryHours', e.target.value)}
-                >
-                  {INTERVAL_OPTIONS.map((hours) => (
-                    <option key={hours} value={hours}>{`A cada ${hours} horas`}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="input-group">
-              <label>Quantidade</label>
-              <input
-                type="text"
-                value={form.amount}
-                onChange={(e) => handleChange('amount', e.target.value.replace(/[^0-9.]/g, ''))}
-                placeholder="Ex.: 2"
-              />
-            </div>
-
-            <div className="input-group">
-              <label>Unidade</label>
-              <input
-                type="text"
-                value={form.unit}
-                onChange={(e) => handleChange('unit', e.target.value)}
-                placeholder="Ex.: copos"
-              />
-            </div>
-          </div>
-
-          <div className="routine-actions">
-            <button type="submit" className="btn-primary">
-              {editingId ? 'Salvar alteração' : 'Adicionar rotina'}
+            <button
+              type="button"
+              className="routine-new-btn"
+              onClick={() => {
+                setEditingId(null)
+                setForm(emptyForm())
+                setFormOpen(true)
+                setMessage('')
+              }}
+            >
+              Nova rotina
             </button>
-            {editingId && (
-              <button type="button" className="btn-secondary" onClick={resetForm}>
-                Cancelar edição
-              </button>
-            )}
           </div>
 
-          {message && <div className="routine-message">{message}</div>}
-        </form>
+          <div className="routine-cards">
+            {sortedItems.map((item) => {
+              const category = getCategory(item.category || item.icon)
+              return (
+                <article key={item.id} className="routine-card">
+                  <div className="routine-card-icon">{category.mark}</div>
+                  <div className="routine-card-body">
+                    <div className="routine-card-top">
+                      <div>
+                        <span className="routine-category">{category.label}</span>
+                        <h3>{item.title}</h3>
+                      </div>
+                      <span className="routine-time">{item.time}</span>
+                    </div>
+                    <p>{item.description}</p>
+                    <div className="routine-meta">
+                      <span>{item.frequency === 'daily' ? 'Todo dia' : `A cada ${item.repeatEveryHours} horas`}</span>
+                      {item.amount && item.unit && <span>{item.amount} {item.unit}</span>}
+                    </div>
+                  </div>
+                  <div className="routine-card-actions">
+                    <button type="button" className="mini-btn" onClick={() => handleEdit(item)}>Editar</button>
+                    <button type="button" className="mini-btn danger" onClick={() => handleDelete(item.id)}>Excluir</button>
+                  </div>
+                </article>
+              )
+            })}
 
-        <section className="routine-cards">
-          {sortedItems.map((item) => (
-            <article key={item.id} className="routine-card">
-              <div className="routine-card-icon">{item.icon}</div>
-              <div className="routine-card-body">
-                <div className="routine-card-top">
-                  <h3>{item.title}</h3>
-                  <span className="routine-frequency">
-                    {item.frequency === 'daily' ? 'Diariamente' : `A cada ${item.repeatEveryHours} horas`}
-                  </span>
-                </div>
-                <p>{item.description}</p>
-                <div className="routine-meta">
-                  <span>⏰ {item.time}</span>
-                  {item.amount && item.unit && <span>💡 {item.amount} {item.unit}</span>}
-                </div>
+            {sortedItems.length === 0 && (
+              <div className="empty-state routine-empty">
+                <div className="empty-icon">+</div>
+                <h3>Nenhuma rotina cadastrada</h3>
+                <p>Adicione habitos para receber alertas automaticos.</p>
               </div>
-              <div className="routine-card-actions">
-                <button type="button" className="mini-btn" onClick={() => handleEdit(item)}>Editar</button>
-                <button type="button" className="mini-btn danger" onClick={() => handleDelete(item.id)}>Excluir</button>
-              </div>
-            </article>
-          ))}
-
-          {sortedItems.length === 0 && (
-            <div className="empty-state">
-              <div className="empty-icon">📋</div>
-              <h3>Nenhuma rotina cadastrada</h3>
-              <p>Adicione hábitos para receber alertas automáticos.</p>
-            </div>
-          )}
+            )}
+          </div>
         </section>
+
+        {formOpen && (
+          <div className="routine-modal-backdrop" role="dialog" aria-modal="true" aria-label={editingId ? 'Editar rotina' : 'Nova rotina'}>
+            <form className="routine-form routine-modal" onSubmit={handleSubmit}>
+              <div className="routine-form-header">
+                <div>
+                  <h2>{editingId ? 'Editar rotina' : 'Nova rotina'}</h2>
+                  <p>Defina o habito, horario e repeticao.</p>
+                </div>
+                <button type="button" className="routine-close-btn" onClick={resetForm} aria-label="Fechar">
+                  x
+                </button>
+              </div>
+
+              <fieldset className="routine-fieldset">
+                <legend>Tipo</legend>
+                <div className="category-grid">
+                  {CATEGORIES.map((category) => (
+                    <button
+                      key={category.value}
+                      type="button"
+                      className={`category-chip ${form.category === category.value ? 'active' : ''}`}
+                      onClick={() => handleChange('category', category.value)}
+                    >
+                      <span>{category.mark}</span>
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="routine-form-block">
+                <div className="input-group">
+                  <label>Titulo</label>
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) => handleChange('title', e.target.value)}
+                    placeholder="Ex.: Beber agua"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label>Descricao</label>
+                  <input
+                    type="text"
+                    value={form.description}
+                    onChange={(e) => handleChange('description', e.target.value)}
+                    placeholder="Ex.: 2 copos ao acordar"
+                  />
+                </div>
+              </div>
+
+              <div className="routine-grid">
+                <div className="input-group">
+                  <label>Frequencia</label>
+                  <select className="field-select" value={form.frequency} onChange={(e) => handleChange('frequency', e.target.value)}>
+                    {FREQUENCIES.map((frequency) => (
+                      <option key={frequency.value} value={frequency.value}>{frequency.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="input-group">
+                  <label>Horario inicial</label>
+                  <input
+                    type="time"
+                    value={form.time}
+                    onChange={(e) => handleChange('time', e.target.value)}
+                  />
+                </div>
+
+                {form.frequency === 'interval' && (
+                  <div className="input-group">
+                    <label>Intervalo</label>
+                    <select
+                      className="field-select"
+                      value={form.repeatEveryHours}
+                      onChange={(e) => handleChange('repeatEveryHours', e.target.value)}
+                    >
+                      {INTERVAL_OPTIONS.map((hours) => (
+                        <option key={hours} value={hours}>{`A cada ${hours} horas`}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="input-group">
+                  <label>Quantidade</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.amount}
+                    onChange={(e) => handleChange('amount', e.target.value.replace(/[^0-9.]/g, ''))}
+                    placeholder="Ex.: 2"
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label>Unidade</label>
+                  <input
+                    type="text"
+                    value={form.unit}
+                    onChange={(e) => handleChange('unit', e.target.value)}
+                    placeholder="Ex.: copos"
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="routine-submit">
+                {editingId ? 'Salvar alteracao' : 'Adicionar rotina'}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   )

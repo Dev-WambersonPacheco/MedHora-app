@@ -54,7 +54,9 @@ function toPublicUser(userRow) {
 
 function getTodayKey() {
   const d = new Date()
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${month}-${day}`
 }
 
 function isBcryptHash(value = '') {
@@ -225,6 +227,53 @@ async function ensureProfileSchema() {
   `)
 
   await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'medications'
+          AND column_name = 'time'
+          AND data_type <> 'time without time zone'
+      ) THEN
+        ALTER TABLE medications
+        ALTER COLUMN time TYPE TIME
+        USING (
+          CASE
+            WHEN time::text ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN time::time
+            WHEN time::text ~ '^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$' THEN time::time
+            ELSE '00:00'::time
+          END
+        );
+      END IF;
+    END $$;
+  `)
+
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'medication_intake'
+          AND column_name = 'day_key'
+          AND data_type <> 'date'
+      ) THEN
+        ALTER TABLE medication_intake
+        ALTER COLUMN day_key TYPE DATE
+        USING (
+          CASE
+            WHEN day_key::text ~ '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}$' THEN day_key::date
+            ELSE CURRENT_DATE
+          END
+        );
+      END IF;
+    END $$;
+  `)
+
+  await query(`
     UPDATE medications
     SET
       treatment_days = GREATEST(COALESCE(treatment_days, 1), 1),
@@ -246,8 +295,51 @@ async function ensureProfileSchema() {
   `)
 
   await query(`
+    UPDATE medications
+    SET amount = NULL
+    WHERE amount IS NOT NULL
+      AND amount <= 0
+  `)
+
+  await query(`
+    UPDATE medications
+    SET end_date = start_date
+    WHERE end_date < start_date
+  `)
+
+  await query(`
     CREATE INDEX IF NOT EXISTS idx_medications_active_period
     ON medications(user_cpf, start_date, end_date)
+  `)
+
+  await query(`
+    DO $$
+    BEGIN
+      ALTER TABLE medications
+      ADD CONSTRAINT chk_medications_amount_positive
+      CHECK (amount IS NULL OR amount > 0);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+  `)
+
+  await query(`
+    DO $$
+    BEGIN
+      ALTER TABLE medications
+      ADD CONSTRAINT chk_medications_treatment_days_positive
+      CHECK (treatment_days > 0);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+  `)
+
+  await query(`
+    DO $$
+    BEGIN
+      ALTER TABLE medications
+      ADD CONSTRAINT chk_medications_valid_period
+      CHECK (end_date >= start_date);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
   `)
 
   const usersResult = await query('SELECT cpf, invite_code FROM users ORDER BY cpf')
@@ -324,14 +416,14 @@ async function getMedicationFeed(cpf, dayKey = getTodayKey()) {
         END,
         m.dose
       ) AS dose,
-      m.time,
+      TO_CHAR(m.time, 'HH24:MI') AS time,
       m.created_at AS "createdAt",
       COALESCE(mi.taken, FALSE) AS "takenToday"
     FROM medications m
     LEFT JOIN medication_intake mi
       ON mi.medication_id = m.id
       AND mi.user_cpf = m.user_cpf
-      AND mi.day_key = $2
+      AND mi.day_key = $2::date
     WHERE m.user_cpf = $1
       AND $2::date BETWEEN m.start_date AND m.end_date
     ORDER BY m.time ASC`,
@@ -367,7 +459,7 @@ async function getMedicationSummary(cpf, dayKey = getTodayKey()) {
     LEFT JOIN medication_intake mi
       ON mi.medication_id = m.id
       AND mi.user_cpf = m.user_cpf
-      AND mi.day_key = $2
+      AND mi.day_key = $2::date
     WHERE m.user_cpf = $1
       AND $2::date BETWEEN m.start_date AND m.end_date`,
     [cpf, dayKey]
@@ -405,14 +497,14 @@ async function getTreatmentReport(cpf, period = 'weekly') {
            WHERE COALESCE(mi.taken, FALSE) = FALSE
              AND (
                s.report_date < CURRENT_DATE
-               OR (s.report_date = CURRENT_DATE AND s.time < TO_CHAR(NOW(), 'HH24:MI'))
+               OR (s.report_date = CURRENT_DATE AND s.time < LOCALTIME)
              )
          )::int AS missed
        FROM scheduled s
        LEFT JOIN medication_intake mi
          ON mi.user_cpf = s.user_cpf
        AND mi.medication_id = s.id
-       AND mi.day_key::date = s.report_date
+       AND mi.day_key = s.report_date
        GROUP BY s.report_date
      ),
      pending_today AS (
@@ -421,7 +513,7 @@ async function getTreatmentReport(cpf, period = 'weekly') {
        LEFT JOIN medication_intake mi
          ON mi.user_cpf = s.user_cpf
        AND mi.medication_id = s.id
-       AND mi.day_key::date = s.report_date
+       AND mi.day_key = s.report_date
        WHERE s.report_date = CURRENT_DATE
          AND COALESCE(mi.taken, FALSE) = FALSE
      )
@@ -967,14 +1059,14 @@ app.get('/api/users/:cpf/medications', async (req, res) => {
         END,
         m.dose
       ) AS dose,
-      m.time,
+      TO_CHAR(m.time, 'HH24:MI') AS time,
       m.created_at AS "createdAt",
       COALESCE(mi.taken, FALSE) AS "takenToday"
     FROM medications m
     LEFT JOIN medication_intake mi
       ON mi.medication_id = m.id
       AND mi.user_cpf = m.user_cpf
-      AND mi.day_key = $2
+      AND mi.day_key = $2::date
     WHERE m.user_cpf = $1
       AND $2::date BETWEEN m.start_date AND m.end_date
     ORDER BY m.time ASC`,
@@ -1030,8 +1122,8 @@ app.post('/api/users/:cpf/medications', async (req, res) => {
       const dose = formatDose(amountRaw, unit)
       const result = await client.query(
         `INSERT INTO medications (id, user_cpf, name, dose, amount, unit, time, treatment_days, start_date, end_date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, CURRENT_DATE + ($8::int - 1))
-         RETURNING id, name, amount, unit, dose, time, treatment_days AS "treatmentDays", start_date AS "startDate", end_date AS "endDate", created_at AS "createdAt"`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7::time, $8, CURRENT_DATE, CURRENT_DATE + ($8::int - 1))
+         RETURNING id, name, amount, unit, dose, TO_CHAR(time, 'HH24:MI') AS time, treatment_days AS "treatmentDays", start_date AS "startDate", end_date AS "endDate", created_at AS "createdAt"`,
         [id, cpf, name, dose, amount, unit, time, treatmentDays]
       )
 
@@ -1076,7 +1168,7 @@ app.post('/api/users/:cpf/medications/:id/toggle-taken', async (req, res) => {
   const existing = await query(
     `SELECT taken
      FROM medication_intake
-     WHERE user_cpf = $1 AND medication_id = $2 AND day_key = $3
+     WHERE user_cpf = $1 AND medication_id = $2 AND day_key = $3::date
      LIMIT 1`,
     [cpf, medicationId, dayKey]
   )
@@ -1084,7 +1176,7 @@ app.post('/api/users/:cpf/medications/:id/toggle-taken', async (req, res) => {
   if (existing.rowCount === 0) {
     await query(
       `INSERT INTO medication_intake (user_cpf, medication_id, day_key, taken)
-       VALUES ($1, $2, $3, TRUE)`,
+       VALUES ($1, $2, $3::date, TRUE)`,
       [cpf, medicationId, dayKey]
     )
     return res.json({ taken: true })
@@ -1094,7 +1186,7 @@ app.post('/api/users/:cpf/medications/:id/toggle-taken', async (req, res) => {
   await query(
     `UPDATE medication_intake
      SET taken = $4
-     WHERE user_cpf = $1 AND medication_id = $2 AND day_key = $3`,
+     WHERE user_cpf = $1 AND medication_id = $2 AND day_key = $3::date`,
     [cpf, medicationId, dayKey, nextValue]
   )
 

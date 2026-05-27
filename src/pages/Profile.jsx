@@ -207,10 +207,10 @@ function Profile() {
 
         <div className="profile-actions">
           <button className="btn-edit" onClick={handleEdit}>
-            ✏️ EDITAR PERFIL
+            EDITAR PERFIL
           </button>
           <button className="btn-logout" onClick={handleLogout}>
-            🚪 SAIR
+            SAIR
           </button>
         </div>
       </div>

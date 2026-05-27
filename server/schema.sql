@@ -28,17 +28,20 @@ CREATE TABLE IF NOT EXISTS medications (
   dose VARCHAR(80),
   amount NUMERIC(10,3),
   unit VARCHAR(32),
-  time VARCHAR(5) NOT NULL,
+  time TIME NOT NULL,
   treatment_days INTEGER NOT NULL DEFAULT 1,
   start_date DATE NOT NULL DEFAULT CURRENT_DATE,
   end_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_medications_amount_positive CHECK (amount IS NULL OR amount > 0),
+  CONSTRAINT chk_medications_treatment_days_positive CHECK (treatment_days > 0),
+  CONSTRAINT chk_medications_valid_period CHECK (end_date >= start_date)
 );
 
 CREATE TABLE IF NOT EXISTS medication_intake (
   user_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
   medication_id VARCHAR(64) NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
-  day_key VARCHAR(20) NOT NULL,
+  day_key DATE NOT NULL,
   taken BOOLEAN NOT NULL DEFAULT TRUE,
   PRIMARY KEY (user_cpf, medication_id, day_key)
 );
