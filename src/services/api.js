@@ -3,7 +3,7 @@ const SESSION_KEY = 'medhora_session'
 
 function readSession() {
   try {
-    const raw = localStorage.getItem(SESSION_KEY)
+    const raw = sessionStorage.getItem(SESSION_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -11,7 +11,7 @@ function readSession() {
 }
 
 async function request(path, options = {}) {
-  const session = typeof localStorage !== 'undefined' ? readSession() : null
+  const session = typeof sessionStorage !== 'undefined' ? readSession() : null
   let response
 
   try {
@@ -57,20 +57,6 @@ export const api = {
     })
   },
 
-  requestPasswordRecovery(cpf) {
-    return request('/auth/recovery/request', {
-      method: 'POST',
-      body: JSON.stringify({ cpf })
-    })
-  },
-
-  confirmPasswordRecovery(cpf, code, newPassword) {
-    return request('/auth/recovery/confirm', {
-      method: 'POST',
-      body: JSON.stringify({ cpf, code, newPassword })
-    })
-  },
-
   logout() {
     return request('/auth/logout', {
       method: 'POST'
@@ -111,6 +97,40 @@ export const api = {
   getMedications(cpf, dayKey) {
     const query = new URLSearchParams({ dayKey })
     return request(`/users/${cpf}/medications?${query.toString()}`)
+  },
+
+  getCaregiverReminders(cpf) {
+    return request(`/users/${cpf}/caregiver-reminders`)
+  },
+
+  saveCaregiverReminder(cpf, reminder) {
+    return request(`/users/${cpf}/caregiver-reminders`, {
+      method: 'POST',
+      body: JSON.stringify(reminder)
+    })
+  },
+
+  deleteCaregiverReminder(cpf, reminderId) {
+    return request(`/users/${cpf}/caregiver-reminders/${reminderId}`, {
+      method: 'DELETE'
+    })
+  },
+
+  getRoutines(cpf) {
+    return request(`/users/${cpf}/routines`)
+  },
+
+  saveRoutine(cpf, routine) {
+    return request(`/users/${cpf}/routines`, {
+      method: 'POST',
+      body: JSON.stringify(routine)
+    })
+  },
+
+  deleteRoutine(cpf, routineId) {
+    return request(`/users/${cpf}/routines/${routineId}`, {
+      method: 'DELETE'
+    })
   },
 
   searchMedicines(query) {

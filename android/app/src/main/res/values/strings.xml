@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MedHora</string>
+    <string name="title_activity_main">MedHora</string>
+    <string name="package_name">com.medhora.app</string>
+    <string name="custom_url_scheme">com.medhora.app</string>
+</resources>

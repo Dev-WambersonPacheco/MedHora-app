@@ -7,7 +7,7 @@ const SESSION_KEY = 'medhora_session'
 
 function loadStoredUser() {
   try {
-    const session = localStorage.getItem(SESSION_KEY)
+    const session = sessionStorage.getItem(SESSION_KEY)
     if (!session) return null
 
     const parsed = JSON.parse(session)
@@ -23,7 +23,7 @@ function loadStoredUser() {
 
 function loadStoredSession() {
   try {
-    const session = localStorage.getItem(SESSION_KEY)
+    const session = sessionStorage.getItem(SESSION_KEY)
     return session ? JSON.parse(session) : null
   } catch {
     return null
@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
   const login = (cpf, password) => {
     return api.login(cpf, password)
       .then((response) => {
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: response.token }))
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: response.token }))
         setUser(response.user)
         return { success: true }
       })
@@ -50,14 +50,14 @@ export function AuthProvider({ children }) {
     api.logout().catch(() => {
       // O logout local deve acontecer mesmo se a sessao ja expirou no servidor.
     })
-    localStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem(SESSION_KEY)
     setUser(null)
   }
 
   const register = (data) => {
     return api.register(data)
       .then((response) => {
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: response.token }))
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: response.token }))
         setUser(response.user)
         return { success: true }
       })
@@ -73,7 +73,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.updateUser(user.cpf, updates)
       const session = loadStoredSession()
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: session?.token || null }))
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ user: response.user, token: session?.token || null }))
       setUser(response.user)
       return { success: true }
     } catch (error) {

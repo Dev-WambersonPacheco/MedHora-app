@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS medhora_app AUTHORIZATION pacheco;
+CREATE SCHEMA IF NOT EXISTS medhora_app AUTHORIZATION postgres;
 SET search_path TO medhora_app, public;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -20,6 +20,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code
   WHERE invite_code IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+CREATE TABLE IF NOT EXISTS app_sessions (
+  token UUID PRIMARY KEY,
+  user_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL DEFAULT 'idoso',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_sessions_user_cpf ON app_sessions(user_cpf);
+CREATE INDEX IF NOT EXISTS idx_app_sessions_expires_at ON app_sessions(expires_at);
 
 CREATE TABLE IF NOT EXISTS medications (
   id VARCHAR(64) PRIMARY KEY,
@@ -60,6 +71,40 @@ CREATE INDEX IF NOT EXISTS idx_caregiver_links_caregiver ON caregiver_links(care
 CREATE INDEX IF NOT EXISTS idx_medications_user_cpf ON medications(user_cpf);
 CREATE INDEX IF NOT EXISTS idx_medications_active_period ON medications(user_cpf, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_medication_intake_day_key ON medication_intake(day_key);
+
+CREATE TABLE IF NOT EXISTS caregiver_reminders (
+  id VARCHAR(64) PRIMARY KEY,
+  user_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+  title VARCHAR(140) NOT NULL,
+  description TEXT NOT NULL,
+  reminder_date DATE NOT NULL,
+  reminder_time TIME NOT NULL,
+  priority VARCHAR(20) NOT NULL DEFAULT 'media',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_caregiver_reminders_priority CHECK (priority IN ('alta', 'media', 'baixa'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_caregiver_reminders_user_date ON caregiver_reminders(user_cpf, reminder_date, reminder_time);
+
+CREATE TABLE IF NOT EXISTS routines (
+  id VARCHAR(64) PRIMARY KEY,
+  user_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+  category VARCHAR(40) NOT NULL,
+  title VARCHAR(140) NOT NULL,
+  description TEXT NOT NULL,
+  time TIME NOT NULL,
+  frequency VARCHAR(20) NOT NULL DEFAULT 'daily',
+  repeat_every_hours INTEGER,
+  amount VARCHAR(40),
+  unit VARCHAR(40),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_routines_frequency CHECK (frequency IN ('daily', 'interval')),
+  CONSTRAINT chk_routines_repeat_positive CHECK (repeat_every_hours IS NULL OR repeat_every_hours > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_routines_user_time ON routines(user_cpf, time);
 
 CREATE TABLE IF NOT EXISTS anvisa_medicamentos (
   id BIGSERIAL PRIMARY KEY,

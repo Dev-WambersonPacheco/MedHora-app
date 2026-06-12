@@ -2,6 +2,8 @@
 
 Este documento define a base tecnica para evoluir o MedHora como app seguro, acessivel e multiplataforma para idosos e cuidadores.
 
+Documento complementar: `docs/SYSTEM_COMPATIBILITY.md` confirma a compatibilidade entre requisitos, diagramas, arquitetura, padroes de projeto e o codigo implementado.
+
 ## Objetivo
 
 O MedHora deve permitir que idosos organizem medicamentos e rotina diaria, enquanto cuidadores acompanham vinculos autorizados, pendencias e alertas importantes.
@@ -29,7 +31,7 @@ Direcao recomendada:
 
 Responsabilidades:
 
-- Login, cadastro e sessao local.
+- Login, cadastro e copia temporaria do token de sessao.
 - Fluxos de medicamentos, rotina, perfil e cuidador.
 - Feedback visual simples para idosos.
 - Notificacoes locais quando suportadas pelo navegador/dispositivo.
@@ -102,7 +104,7 @@ O backend ainda pode continuar em um unico arquivo durante a fase inicial. A sep
 
 - Login: CPF e senha.
 - Criar conta: nome, CPF, senha e tipo de perfil.
-- Recuperacao de acesso: proxima etapa, com fluxo seguro por email/SMS.
+- Recuperacao de acesso: fora do escopo atual.
 
 ### Idoso
 
@@ -182,6 +184,44 @@ Campos principais:
 - `day_key`: dia de controle.
 - `taken`: tomado ou pendente.
 
+### app_sessions
+
+Representa sessoes validas do backend.
+
+Campos principais:
+
+- `token`: identificador da sessao.
+- `user_cpf`: usuario autenticado.
+- `role`: perfil da sessao.
+- `created_at`: data de criacao.
+- `expires_at`: data de expiracao.
+
+### caregiver_reminders
+
+Representa lembretes criados pelo cuidador.
+
+Campos principais:
+
+- `id`: identificador unico.
+- `user_cpf`: cuidador dono do lembrete.
+- `title`, `description`: conteudo do lembrete.
+- `reminder_date`, `reminder_time`: data e hora do alerta.
+- `priority`: prioridade `alta`, `media` ou `baixa`.
+
+### routines
+
+Representa rotinas do usuario.
+
+Campos principais:
+
+- `id`: identificador unico.
+- `user_cpf`: dono da rotina.
+- `category`: tipo de rotina.
+- `title`, `description`: conteudo da rotina.
+- `time`: horario inicial.
+- `frequency`: `daily` ou `interval`.
+- `repeat_every_hours`: intervalo quando aplicavel.
+
 ### audit_logs
 
 Proxima tabela recomendada.
@@ -213,12 +253,12 @@ Estado atual:
 - Senhas novas usam bcrypt.
 - Senhas legadas em texto puro sao migradas para hash no primeiro login.
 - Sessao usa token gerado no servidor e enviado no header `x-medhora-token`.
+- Sessao do backend e persistida em `app_sessions` no PostgreSQL.
 
 Proximos reforcos:
 
 - Expirar sessoes por tempo.
-- Criar endpoint de logout para invalidar token no servidor.
-- Trocar sessao em memoria por tabela/Redis antes de deploy real.
+- Criar rotina de limpeza periodica para sessoes expiradas.
 - Exigir senha mais forte do que PIN numerico em contas reais.
 - Adicionar limite de tentativas de login por CPF/IP.
 
@@ -269,11 +309,12 @@ Regras:
 Estado atual:
 
 - Notificacoes locais no frontend quando o navegador permite.
-- Lembretes de cuidador persistidos no `localStorage`.
+- Lembretes do cuidador persistidos no PostgreSQL.
+- Rotinas do idoso persistidas no PostgreSQL.
 
 Direcao recomendada:
 
-- Persistir lembretes do cuidador no PostgreSQL.
+- Manter lembretes e rotinas sincronizados pela API.
 - Criar servico backend de agendamento.
 - Para mobile, usar Expo Notifications ou FCM/APNs.
 - Separar notificacoes de medicamento, rotina e alerta critico.

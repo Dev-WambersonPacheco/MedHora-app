@@ -58,7 +58,7 @@ function Home() {
 
   return (
     <div className="home-page">
-      <Header title="Início" />
+      <Header title="Inicio" />
       <div className="page-content">
         <div className="welcome-section">
           <h1>BEM VINDO,</h1>

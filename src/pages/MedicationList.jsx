@@ -217,7 +217,7 @@ function MedicationList() {
 
   return (
     <div className="med-list-page">
-      <Header title={isCaregiver ? 'Horários dos idosos' : 'Meus horários'} />
+      <Header title={isCaregiver ? 'Horarios dos idosos' : 'Meus horarios'} />
       <div className="page-content">
         <div className="med-summary">
           <div className="summary-pill pending">Não tomados: {groups.missed.length}</div>

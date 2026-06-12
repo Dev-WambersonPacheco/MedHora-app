@@ -51,7 +51,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding-bottom: 90px;
+  padding-bottom: calc(82px + env(safe-area-inset-bottom));
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 

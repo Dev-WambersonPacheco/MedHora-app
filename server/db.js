@@ -3,7 +3,7 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://pacheco:nova_senha@127.0.0.1:5432/medhora'
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:1594870263@127.0.0.1:5432/medhora'
 
 const pool = new Pool({
   connectionString,

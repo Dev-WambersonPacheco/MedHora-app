@@ -22,7 +22,7 @@ function CreateAccount() {
 
   const getFriendlyError = (message) => {
     if (message?.includes('CPF ja cadastrado') || message?.includes('CPF já cadastrado')) {
-      return 'Esse CPF já está cadastrado. Faça login ou recupere sua senha por SMS.'
+      return 'Esse CPF ja esta cadastrado. Faca login com sua senha.'
     }
 
     return message || 'Nao foi possivel criar a conta.'
@@ -43,8 +43,6 @@ function CreateAccount() {
     }
   }
 
-  // usa formatCpf de util
-
   return (
     <div className="create-account-page">
       <Header title="Criar Conta" />
@@ -58,7 +56,7 @@ function CreateAccount() {
           <div className="input-group">
             <label>Tipo de perfil:</label>
             <ProfileTypeToggle value={form.role} onChange={(role) => setForm({ ...form, role })} disabled={loading} />
-            <small>Toque em uma opção para definir o tipo de conta.</small>
+            <small>Toque em uma opcao para definir o tipo de conta.</small>
           </div>
 
           <div className="input-group">
@@ -66,7 +64,7 @@ function CreateAccount() {
             <input
               type="text"
               value={form.name}
-              onChange={(e) => setForm({...form, name: e.target.value})}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Digite seu nome"
               required
               disabled={loading}
@@ -78,7 +76,7 @@ function CreateAccount() {
             <input
               type="text"
               value={form.cpf}
-              onChange={(e) => setForm({...form, cpf: formatCpf(e.target.value)})}
+              onChange={(e) => setForm({ ...form, cpf: formatCpf(e.target.value) })}
               placeholder="000.000.000-00"
               required
               disabled={loading}
@@ -86,7 +84,7 @@ function CreateAccount() {
           </div>
 
           <div className="input-group">
-            <label>Telefone para recuperação por SMS:</label>
+            <label>Telefone de contato:</label>
             <input
               type="tel"
               value={form.phone}
@@ -97,13 +95,13 @@ function CreateAccount() {
               required
               disabled={loading}
             />
-            <small>Esse telefone será usado para recuperar a senha por SMS.</small>
+            <small>Esse telefone sera usado como contato do perfil.</small>
           </div>
 
           <PasswordField
-            label="Senha (apenas números, até 6 dígitos):"
+            label="Senha (apenas numeros, ate 6 digitos):"
             value={form.password}
-            onChange={(e) => setForm({...form, password: e.target.value.replace(/[^0-9]/g, '')})}
+            onChange={(e) => setForm({ ...form, password: e.target.value.replace(/[^0-9]/g, '') })}
             placeholder="123456"
             disabled={loading}
             autoComplete="new-password"
@@ -117,12 +115,12 @@ function CreateAccount() {
           </button>
         </form>
 
-        <button 
-          className="btn-back" 
+        <button
+          className="btn-back"
           onClick={() => navigate('/login')}
           disabled={loading}
         >
-          ← Voltar ao Login
+          Voltar ao Login
         </button>
       </div>
     </div>

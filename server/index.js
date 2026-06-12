@@ -12,12 +12,6 @@ const port = Number(process.env.PORT || 4000)
 const SALT_ROUNDS = 10
 const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 8)
 const PROFILE_ROLES = new Set(['idoso', 'cuidador'])
-const activeSessions = new Map()
-const passwordRecoveryCodes = new Map()
-const SMS_PROVIDER = String(process.env.SMS_PROVIDER || 'twilio').toLowerCase()
-const TWILIO_ACCOUNT_SID = String(process.env.TWILIO_ACCOUNT_SID || '')
-const TWILIO_AUTH_TOKEN = String(process.env.TWILIO_AUTH_TOKEN || '')
-const TWILIO_PHONE_NUMBER = String(process.env.TWILIO_PHONE_NUMBER || '')
 
 const corsOrigin = process.env.CORS_ORIGIN
 app.use(cors(corsOrigin ? { origin: corsOrigin } : undefined))
@@ -29,15 +23,6 @@ function cleanCpf(cpf = '') {
 
 function cleanPhone(phone = '') {
   return String(phone).replace(/\D/g, '')
-}
-
-function normalizePhoneForSms(phone = '') {
-  const digits = cleanPhone(phone)
-  if (!digits) return ''
-  if (digits.startsWith('55') && digits.length >= 12) return `+${digits}`
-  if (digits.length === 10 || digits.length === 11) return `+55${digits}`
-  if (String(phone).trim().startsWith('+')) return String(phone).trim()
-  return `+${digits}`
 }
 
 function toPublicUser(userRow) {
@@ -72,86 +57,42 @@ function generateInviteCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase()
 }
 
-function generateRecoveryCode() {
-  return String(Math.floor(100000 + Math.random() * 900000))
-}
-
-function maskPhone(phone = '') {
-  const digits = cleanPhone(phone).slice(0, 11)
-  if (digits.length < 8) return 'telefone cadastrado'
-  const lastFour = digits.slice(-4)
-  return `(**) *****-${lastFour}`
-}
-
-async function sendSms({ to, body }) {
-  if (SMS_PROVIDER !== 'twilio') {
-    throw new Error('Provedor de SMS nao configurado. Defina SMS_PROVIDER=twilio para enviar SMS.')
-  }
-
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
-    throw new Error('Configurações do Twilio ausentes. Defina TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_PHONE_NUMBER.')
-  }
-
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: new URLSearchParams({
-      To: normalizePhoneForSms(to),
-      From: TWILIO_PHONE_NUMBER,
-      Body: body
-    }).toString()
-  })
-
-  const payload = await response.json().catch(() => null)
-  if (!response.ok) {
-    const message = payload?.message || payload?.error_message || 'Falha ao enviar SMS.'
-    throw new Error(message)
-  }
-
-  return payload
-}
-
-function cleanupRecoveryCodes() {
-  const now = Date.now()
-  for (const [cpf, recovery] of passwordRecoveryCodes.entries()) {
-    if (!recovery || recovery.expiresAt <= now) {
-      passwordRecoveryCodes.delete(cpf)
-    }
-  }
-}
-
-function createSession(userRow) {
+async function createSession(userRow) {
   const token = crypto.randomUUID()
   const now = Date.now()
-  activeSessions.set(token, {
-    cpf: userRow.cpf,
-    role: normalizeRole(userRow.role),
-    createdAt: now,
-    expiresAt: now + SESSION_MAX_AGE_MS
-  })
+  await query(
+    `INSERT INTO app_sessions (token, user_cpf, role, created_at, expires_at)
+     VALUES ($1::uuid, $2, $3, TO_TIMESTAMP($4 / 1000.0), TO_TIMESTAMP($5 / 1000.0))`,
+    [token, userRow.cpf, normalizeRole(userRow.role), now, now + SESSION_MAX_AGE_MS]
+  )
   return token
 }
 
-function getSessionFromRequest(req) {
+async function getSessionFromRequest(req) {
   const token = String(req.header('x-medhora-token') || '').trim()
   if (!token) return null
 
-  const session = activeSessions.get(token)
+  const result = await query(
+    `SELECT token::text, user_cpf AS cpf, role, created_at AS "createdAt", expires_at AS "expiresAt"
+     FROM app_sessions
+     WHERE token = $1::uuid
+     LIMIT 1`,
+    [token]
+  ).catch(() => ({ rows: [] }))
+
+  const session = result.rows[0]
   if (!session) return null
 
-  if (session.expiresAt <= Date.now()) {
-    activeSessions.delete(token)
+  if (new Date(session.expiresAt).getTime() <= Date.now()) {
+    await query('DELETE FROM app_sessions WHERE token = $1::uuid', [token])
     return null
   }
 
-  return { token, ...session }
+  return session
 }
 
-function requireSelfAccess(req, res, cpf) {
-  const session = getSessionFromRequest(req)
+async function requireSelfAccess(req, res, cpf) {
+  const session = await getSessionFromRequest(req)
   if (!session || session.cpf !== cpf) {
     res.status(401).json({ error: 'Sessao invalida ou expirada.' })
     return null
@@ -189,6 +130,26 @@ async function ensureProfileSchema() {
   await query(`
     CREATE INDEX IF NOT EXISTS idx_users_role
     ON users(role)
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS app_sessions (
+      token UUID PRIMARY KEY,
+      user_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+      role VARCHAR(20) NOT NULL DEFAULT 'idoso',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL
+    )
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_app_sessions_user_cpf
+    ON app_sessions(user_cpf)
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_app_sessions_expires_at
+    ON app_sessions(expires_at)
   `)
 
   await query(`
@@ -313,6 +274,50 @@ async function ensureProfileSchema() {
   `)
 
   await query(`
+    CREATE TABLE IF NOT EXISTS caregiver_reminders (
+      id VARCHAR(64) PRIMARY KEY,
+      user_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+      title VARCHAR(140) NOT NULL,
+      description TEXT NOT NULL,
+      reminder_date DATE NOT NULL,
+      reminder_time TIME NOT NULL,
+      priority VARCHAR(20) NOT NULL DEFAULT 'media',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT chk_caregiver_reminders_priority CHECK (priority IN ('alta', 'media', 'baixa'))
+    )
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_caregiver_reminders_user_date
+    ON caregiver_reminders(user_cpf, reminder_date, reminder_time)
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS routines (
+      id VARCHAR(64) PRIMARY KEY,
+      user_cpf VARCHAR(11) NOT NULL REFERENCES users(cpf) ON DELETE CASCADE,
+      category VARCHAR(40) NOT NULL,
+      title VARCHAR(140) NOT NULL,
+      description TEXT NOT NULL,
+      time TIME NOT NULL,
+      frequency VARCHAR(20) NOT NULL DEFAULT 'daily',
+      repeat_every_hours INTEGER,
+      amount VARCHAR(40),
+      unit VARCHAR(40),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT chk_routines_frequency CHECK (frequency IN ('daily', 'interval')),
+      CONSTRAINT chk_routines_repeat_positive CHECK (repeat_every_hours IS NULL OR repeat_every_hours > 0)
+    )
+  `)
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_routines_user_time
+    ON routines(user_cpf, time)
+  `)
+
+  await query(`
     DO $$
     BEGIN
       ALTER TABLE medications
@@ -379,6 +384,10 @@ function formatDose(amount, unit, legacyDose = '') {
 
 function isValidTime(value = '') {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value))
+}
+
+function isValidDateKey(value = '') {
+  return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(value))
 }
 
 function toDateKey(date) {
@@ -742,7 +751,7 @@ app.get('/api/health', (_, res) => {
 
 app.get('/api/users/:cpf/dashboard', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
   const dashboard = await getProfileDashboard(cpf, String(req.query?.dayKey || getTodayKey()))
 
   if (!dashboard) {
@@ -754,7 +763,7 @@ app.get('/api/users/:cpf/dashboard', async (req, res) => {
 
 app.get('/api/users/:cpf/reports', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
 
   const period = String(req.query?.period || 'weekly')
   const report = await getTreatmentReport(cpf, period)
@@ -764,7 +773,7 @@ app.get('/api/users/:cpf/reports', async (req, res) => {
 
 app.post('/api/users/:cpf/relations/link', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
   const identifier = String(req.body?.identifier || '').trim()
 
   if (!identifier) {
@@ -782,7 +791,7 @@ app.post('/api/users/:cpf/relations/link', async (req, res) => {
 app.delete('/api/users/:cpf/relations/:linkedCpf', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
   const linkedCpf = cleanCpf(req.params.linkedCpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
 
   const result = await unlinkCaregiverProfile(cpf, linkedCpf)
   if (result.error) {
@@ -874,85 +883,13 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'CPF ou senha incorretos.' })
   }
 
-  return res.json({ user: toPublicUser(user), token: createSession(user) })
+  return res.json({ user: toPublicUser(user), token: await createSession(user) })
 })
 
-app.post('/api/auth/recovery/request', async (req, res) => {
-  const cpf = cleanCpf(req.body?.cpf)
-
-  if (!cpf) {
-    return res.status(400).json({ error: 'CPF é obrigatório.' })
-  }
-
-  const result = await query('SELECT cpf, phone FROM users WHERE cpf = $1 LIMIT 1', [cpf])
-  const user = result.rows[0]
-
-  if (!user?.phone) {
-    return res.status(400).json({ error: 'Cadastre um telefone no perfil para recuperar a senha por SMS.' })
-  }
-
-  cleanupRecoveryCodes()
-
-  const code = generateRecoveryCode()
-  const expiresAt = Date.now() + 10 * 60 * 1000
-  passwordRecoveryCodes.set(cpf, {
-    code,
-    phone: String(user.phone).trim(),
-    expiresAt
-  })
-
-  await sendSms({
-    to: user.phone,
-    body: `MedHora: seu código de recuperação é ${code}. Ele expira em 10 minutos.`
-  })
-
-  return res.json({
-    message: 'Código de recuperação enviado por SMS.',
-    phoneHint: maskPhone(user.phone)
-  })
-})
-
-app.post('/api/auth/recovery/confirm', async (req, res) => {
-  const cpf = cleanCpf(req.body?.cpf)
-  const code = String(req.body?.code || '').trim()
-  const newPassword = String(req.body?.newPassword || '')
-
-  if (!cpf || !code || !newPassword) {
-    return res.status(400).json({ error: 'CPF, código e nova senha são obrigatórios.' })
-  }
-
-  if (!/^\d{1,6}$/.test(newPassword)) {
-    return res.status(400).json({ error: 'Senha inválida. Deve conter apenas dígitos e ter no máximo 6 caracteres.' })
-  }
-
-  cleanupRecoveryCodes()
-
-  const recovery = passwordRecoveryCodes.get(cpf)
-  if (!recovery || recovery.expiresAt <= Date.now()) {
-    passwordRecoveryCodes.delete(cpf)
-    return res.status(400).json({ error: 'Código expirado ou inexistente. Solicite um novo SMS.' })
-  }
-
-  if (recovery.code !== code) {
-    return res.status(400).json({ error: 'Código inválido. Verifique o SMS enviado.' })
-  }
-
-  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
-  const updated = await query('UPDATE users SET password = $2 WHERE cpf = $1 RETURNING cpf, name, phone, email, caregiver, role, invite_code', [cpf, hashedPassword])
-
-  passwordRecoveryCodes.delete(cpf)
-
-  if (updated.rowCount === 0) {
-    return res.status(404).json({ error: 'Usuário não encontrado.' })
-  }
-
-  return res.json({ message: 'Senha redefinida com sucesso.' })
-})
-
-app.post('/api/auth/logout', (req, res) => {
-  const session = getSessionFromRequest(req)
+app.post('/api/auth/logout', async (req, res) => {
+  const session = await getSessionFromRequest(req)
   if (session?.token) {
-    activeSessions.delete(session.token)
+    await query('DELETE FROM app_sessions WHERE token = $1::uuid', [session.token])
   }
 
   return res.status(204).send()
@@ -1003,12 +940,12 @@ app.post('/api/auth/register', async (req, res) => {
     [cpf]
   )
 
-  return res.status(201).json({ user: toPublicUser(userResult.rows[0]), token: createSession(userResult.rows[0]) })
+  return res.status(201).json({ user: toPublicUser(userResult.rows[0]), token: await createSession(userResult.rows[0]) })
 })
 
 app.patch('/api/users/:cpf', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
   const name = typeof req.body?.name === 'string' ? req.body.name.trim().toUpperCase() : null
   const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : null
   const email = typeof req.body?.email === 'string' ? req.body.email.trim() : null
@@ -1038,9 +975,196 @@ app.patch('/api/users/:cpf', async (req, res) => {
   return res.json({ user: toPublicUser(updated.rows[0]) })
 })
 
+app.get('/api/users/:cpf/caregiver-reminders', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!await requireSelfAccess(req, res, cpf)) return
+
+  const result = await query(
+    `SELECT
+      id,
+      title,
+      description,
+      reminder_date::text AS date,
+      TO_CHAR(reminder_time, 'HH24:MI') AS time,
+      priority,
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+     FROM caregiver_reminders
+     WHERE user_cpf = $1
+     ORDER BY reminder_date ASC, reminder_time ASC`,
+    [cpf]
+  )
+
+  return res.json({ reminders: result.rows })
+})
+
+app.post('/api/users/:cpf/caregiver-reminders', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!await requireSelfAccess(req, res, cpf)) return
+
+  const id = String(req.body?.id || crypto.randomUUID()).trim()
+  const title = String(req.body?.title || '').trim()
+  const description = String(req.body?.description || '').trim()
+  const date = String(req.body?.date || '').trim()
+  const time = String(req.body?.time || '').trim()
+  const priority = String(req.body?.priority || 'media').trim().toLowerCase()
+  const allowedPriorities = new Set(['alta', 'media', 'baixa'])
+
+  if (!id || !title || !description || !isValidDateKey(date) || !isValidTime(time) || !allowedPriorities.has(priority)) {
+    return res.status(400).json({ error: 'Informe titulo, descricao, data, hora e prioridade validos.' })
+  }
+
+  const result = await query(
+    `INSERT INTO caregiver_reminders (id, user_cpf, title, description, reminder_date, reminder_time, priority)
+     VALUES ($1, $2, $3, $4, $5::date, $6::time, $7)
+     ON CONFLICT (id) DO UPDATE
+     SET title = EXCLUDED.title,
+         description = EXCLUDED.description,
+         reminder_date = EXCLUDED.reminder_date,
+         reminder_time = EXCLUDED.reminder_time,
+         priority = EXCLUDED.priority,
+         updated_at = NOW()
+     WHERE caregiver_reminders.user_cpf = EXCLUDED.user_cpf
+     RETURNING
+      id,
+      title,
+      description,
+      reminder_date::text AS date,
+      TO_CHAR(reminder_time, 'HH24:MI') AS time,
+      priority,
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"`,
+    [id, cpf, title, description, date, time, priority]
+  )
+
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Lembrete nao encontrado.' })
+  }
+
+  return res.status(201).json({ reminder: result.rows[0] })
+})
+
+app.delete('/api/users/:cpf/caregiver-reminders/:id', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!await requireSelfAccess(req, res, cpf)) return
+
+  const deleted = await query(
+    'DELETE FROM caregiver_reminders WHERE id = $1 AND user_cpf = $2',
+    [String(req.params.id), cpf]
+  )
+
+  if (deleted.rowCount === 0) {
+    return res.status(404).json({ error: 'Lembrete nao encontrado.' })
+  }
+
+  return res.status(204).send()
+})
+
+app.get('/api/users/:cpf/routines', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!await requireSelfAccess(req, res, cpf)) return
+
+  const result = await query(
+    `SELECT
+      id,
+      category,
+      category AS icon,
+      title,
+      description,
+      TO_CHAR(time, 'HH24:MI') AS time,
+      frequency,
+      repeat_every_hours AS "repeatEveryHours",
+      amount,
+      unit,
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+     FROM routines
+     WHERE user_cpf = $1
+     ORDER BY time ASC, title ASC`,
+    [cpf]
+  )
+
+  return res.json({ routines: result.rows })
+})
+
+app.post('/api/users/:cpf/routines', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!await requireSelfAccess(req, res, cpf)) return
+
+  const id = String(req.body?.id || crypto.randomUUID()).trim()
+  const category = String(req.body?.category || 'agua').trim()
+  const title = String(req.body?.title || '').trim()
+  const description = String(req.body?.description || '').trim()
+  const time = String(req.body?.time || '').trim()
+  const frequency = String(req.body?.frequency || 'daily').trim()
+  const repeatEveryHours = frequency === 'interval' ? Number(req.body?.repeatEveryHours || 0) : null
+  const amount = String(req.body?.amount || '').trim()
+  const unit = String(req.body?.unit || '').trim()
+
+  if (!id || !category || !title || !description || !isValidTime(time) || !['daily', 'interval'].includes(frequency)) {
+    return res.status(400).json({ error: 'Informe rotina, horario e frequencia validos.' })
+  }
+
+  if (frequency === 'interval' && (!Number.isInteger(repeatEveryHours) || repeatEveryHours <= 0)) {
+    return res.status(400).json({ error: 'Informe um intervalo valido.' })
+  }
+
+  const result = await query(
+    `INSERT INTO routines (id, user_cpf, category, title, description, time, frequency, repeat_every_hours, amount, unit)
+     VALUES ($1, $2, $3, $4, $5, $6::time, $7, $8, $9, $10)
+     ON CONFLICT (id) DO UPDATE
+     SET category = EXCLUDED.category,
+         title = EXCLUDED.title,
+         description = EXCLUDED.description,
+         time = EXCLUDED.time,
+         frequency = EXCLUDED.frequency,
+         repeat_every_hours = EXCLUDED.repeat_every_hours,
+         amount = EXCLUDED.amount,
+         unit = EXCLUDED.unit,
+         updated_at = NOW()
+     WHERE routines.user_cpf = EXCLUDED.user_cpf
+     RETURNING
+      id,
+      category,
+      category AS icon,
+      title,
+      description,
+      TO_CHAR(time, 'HH24:MI') AS time,
+      frequency,
+      repeat_every_hours AS "repeatEveryHours",
+      amount,
+      unit,
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"`,
+    [id, cpf, category, title, description, time, frequency, repeatEveryHours, amount || null, unit || null]
+  )
+
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Rotina nao encontrada.' })
+  }
+
+  return res.status(201).json({ routine: result.rows[0] })
+})
+
+app.delete('/api/users/:cpf/routines/:id', async (req, res) => {
+  const cpf = cleanCpf(req.params.cpf)
+  if (!await requireSelfAccess(req, res, cpf)) return
+
+  const deleted = await query(
+    'DELETE FROM routines WHERE id = $1 AND user_cpf = $2',
+    [String(req.params.id), cpf]
+  )
+
+  if (deleted.rowCount === 0) {
+    return res.status(404).json({ error: 'Rotina nao encontrada.' })
+  }
+
+  return res.status(204).send()
+})
+
 app.get('/api/users/:cpf/medications', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
   const dayKey = String(req.query?.dayKey || getTodayKey())
 
   const result = await query(
@@ -1083,7 +1207,7 @@ app.get('/api/users/:cpf/medications', async (req, res) => {
 
 app.post('/api/users/:cpf/medications', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
   const name = String(req.body?.name || '').trim().toUpperCase()
   const amountRaw = String(req.body?.amount ?? '').trim()
   const unit = String(req.body?.unit || '').trim().toLowerCase()
@@ -1145,7 +1269,7 @@ app.post('/api/users/:cpf/medications', async (req, res) => {
 app.delete('/api/users/:cpf/medications/:id', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
   const { id } = req.params
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
 
   const deleted = await query(
     'DELETE FROM medications WHERE id = $1 AND user_cpf = $2',
@@ -1161,7 +1285,7 @@ app.delete('/api/users/:cpf/medications/:id', async (req, res) => {
 
 app.post('/api/users/:cpf/medications/:id/toggle-taken', async (req, res) => {
   const cpf = cleanCpf(req.params.cpf)
-  if (!requireSelfAccess(req, res, cpf)) return
+  if (!await requireSelfAccess(req, res, cpf)) return
   const medicationId = String(req.params.id)
   const dayKey = String(req.body?.dayKey || getTodayKey())
 

@@ -39,7 +39,7 @@
 - [x] Validar telas no browser
 
 ## Banco de Dados
-- [x] Conectar o projeto ao PostgreSQL local com o usuário pacheco
+- [x] Conectar o projeto ao PostgreSQL local com o usuário postgres
 - [x] Criar e usar o schema medhora_app como dono do app
 
 ## Arquitetura e Segurança
@@ -48,7 +48,9 @@
 - [x] Criar perfis idoso/cuidador com vínculo explícito
 - [x] Adicionar confirmação antes de excluir medicamento
 - [x] Expirar sessões e invalidar token no logout
-- [ ] Persistir lembretes do cuidador no PostgreSQL
+- [x] Persistir lembretes do cuidador no PostgreSQL
+- [x] Persistir rotinas do idoso no PostgreSQL
+- [x] Persistir sessoes do backend no PostgreSQL
 - [ ] Criar logs de auditoria para ações sensíveis
 - [ ] Adicionar migrações versionadas para produção
 - [x] Configurar CORS por ambiente antes do deploy

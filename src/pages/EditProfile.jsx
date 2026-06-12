@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Header from '../components/Header.jsx'
@@ -59,7 +59,7 @@ function EditProfile() {
             <input
               type="text"
               value={form.name}
-              onChange={(e) => setForm({...form, name: e.target.value})}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
               required
               disabled={loading}
             />
@@ -70,14 +70,14 @@ function EditProfile() {
             <input
               type="tel"
               value={form.phone}
-              onChange={(e) => setForm({...form, phone: formatPhone(e.target.value)})}
+              onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
               required
               placeholder="(11) 99999-9999"
               inputMode="tel"
               maxLength={15}
               disabled={loading}
             />
-            <small>Telefone obrigatório para recuperação por SMS.</small>
+            <small>Telefone usado como contato do perfil.</small>
           </div>
 
           <div className="input-group">
@@ -85,7 +85,7 @@ function EditProfile() {
             <input
               type="email"
               value={form.email}
-              onChange={(e) => setForm({...form, email: e.target.value})}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               disabled={loading}
             />
           </div>
@@ -94,9 +94,9 @@ function EditProfile() {
           {success && <div className="success">{success}</div>}
 
           <div className="form-actions">
-            <button 
-              type="button" 
-              className="btn-cancel" 
+            <button
+              type="button"
+              className="btn-cancel"
               onClick={() => navigate('/perfil')}
               disabled={loading}
             >

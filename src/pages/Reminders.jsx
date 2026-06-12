@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import Header from '../components/Header.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../services/api.js'
 import { cancelRoutineAlerts, scheduleRoutineAlert } from '../utils/alerts.js'
 import { requestNotificationPermission } from '../utils/notifications.js'
 import './Reminders.css'
 
-const STORAGE_KEY = 'medhora_routines_v1'
-
 const CATEGORIES = [
-  { value: 'agua', label: 'Agua', mark: '🥛' },
-  { value: 'refeicao', label: 'Refeicao', mark: '🥗' },
-  { value: 'movimento', label: 'Movimento', mark: '🚶‍♂️' },
-  { value: 'sono', label: 'Sono', mark: '🛌' },
+  { value: 'agua', label: 'Agua', mark: 'AG' },
+  { value: 'refeicao', label: 'Refeicao', mark: 'RF' },
+  { value: 'movimento', label: 'Movimento', mark: 'MV' },
+  { value: 'sono', label: 'Sono', mark: 'SN' },
   { value: 'bem-estar', label: 'Bem-estar', mark: 'BE' },
-  { value: 'caminhada', label: 'Caminhada', mark: '🚶‍♂️' },
-  { value: 'leitura', label: 'Leitura', mark: '📰' },
-  { value: 'sol', label: 'Sol', mark: '☀' }
+  { value: 'caminhada', label: 'Caminhada', mark: 'CM' },
+  { value: 'leitura', label: 'Leitura', mark: 'LT' },
+  { value: 'sol', label: 'Sol', mark: 'SL' }
 ]
 
 const FREQUENCIES = [
@@ -41,15 +41,6 @@ function emptyForm() {
   }
 }
 
-function loadItems() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
 function minutesFromTime(time = '00:00') {
   const [hours = 0, minutes = 0] = String(time).split(':').map(Number)
   return hours * 60 + minutes
@@ -60,18 +51,44 @@ function getCategory(value) {
 }
 
 function Routine() {
-  const [items, setItems] = useState(() => loadItems())
+  const { user } = useAuth()
+  const [items, setItems] = useState([])
   const [form, setForm] = useState(emptyForm())
   const [editingId, setEditingId] = useState(null)
   const [formOpen, setFormOpen] = useState(false)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     requestNotificationPermission()
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
     cancelRoutineAlerts()
     items.forEach((item) => scheduleRoutineAlert(item))
   }, [items])
+
+  useEffect(() => {
+    if (!user?.cpf) {
+      setItems([])
+      return
+    }
+
+    let mounted = true
+
+    api.getRoutines(user.cpf)
+      .then((response) => {
+        if (mounted) {
+          setItems(response.routines || [])
+          setError('')
+        }
+      })
+      .catch((loadError) => {
+        if (mounted) setError(loadError.message || 'Nao foi possivel carregar as rotinas.')
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [user?.cpf])
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => minutesFromTime(a.time) - minutesFromTime(b.time))
@@ -104,6 +121,7 @@ function Routine() {
     })
     setFormOpen(true)
     setMessage('')
+    setError('')
   }
 
   const resetForm = () => {
@@ -111,13 +129,19 @@ function Routine() {
     setForm(emptyForm())
     setFormOpen(false)
     setMessage('')
+    setError('')
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
     if (!form.title.trim() || !form.description.trim()) {
       setMessage('Preencha titulo e descricao da rotina.')
+      return
+    }
+
+    if (!user?.cpf) {
+      setError('Usuario nao autenticado.')
       return
     }
 
@@ -134,20 +158,37 @@ function Routine() {
       unit: form.unit.trim()
     }
 
-    setItems((prev) => {
-      const next = prev.filter((item) => item.id !== payload.id)
-      return [...next, payload]
-    })
+    setSaving(true)
+    setError('')
 
-    setMessage(editingId ? 'Rotina atualizada.' : 'Rotina adicionada.')
-    setEditingId(null)
-    setForm(emptyForm())
-    setFormOpen(false)
+    try {
+      const response = await api.saveRoutine(user.cpf, payload)
+      const saved = response.routine
+      setItems((prev) => {
+        const next = prev.filter((item) => item.id !== saved.id)
+        return [...next, saved]
+      })
+      setMessage(editingId ? 'Rotina atualizada.' : 'Rotina adicionada.')
+      setEditingId(null)
+      setForm(emptyForm())
+      setFormOpen(false)
+    } catch (saveError) {
+      setError(saveError.message || 'Nao foi possivel salvar a rotina.')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleDelete = (id) => {
-    setItems((prev) => prev.filter((item) => item.id !== id))
-    setMessage('Rotina removida.')
+  const handleDelete = async (id) => {
+    if (!user?.cpf) return
+
+    try {
+      await api.deleteRoutine(user.cpf, id)
+      setItems((prev) => prev.filter((item) => item.id !== id))
+      setMessage('Rotina removida.')
+    } catch (deleteError) {
+      setError(deleteError.message || 'Nao foi possivel remover a rotina.')
+    }
   }
 
   return (
@@ -176,6 +217,7 @@ function Routine() {
         </section>
 
         {message && <div className="routine-message routine-page-message">{message}</div>}
+        {error && <div className="routine-message routine-page-message">{error}</div>}
 
         <section className="routine-list-section">
           <div className="routine-list-header">
@@ -191,6 +233,7 @@ function Routine() {
                 setForm(emptyForm())
                 setFormOpen(true)
                 setMessage('')
+                setError('')
               }}
             >
               Nova rotina
@@ -344,8 +387,8 @@ function Routine() {
                 </div>
               </div>
 
-              <button type="submit" className="routine-submit">
-                {editingId ? 'Salvar alteracao' : 'Adicionar rotina'}
+              <button type="submit" className="routine-submit" disabled={saving}>
+                {saving ? 'Salvando...' : editingId ? 'Salvar alteracao' : 'Adicionar rotina'}
               </button>
             </form>
           </div>
