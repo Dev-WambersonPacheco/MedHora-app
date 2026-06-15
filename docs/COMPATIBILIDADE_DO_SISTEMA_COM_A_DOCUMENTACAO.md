@@ -4,10 +4,10 @@ Este documento confirma a compatibilidade entre o sistema implementado e a docum
 
 Documentos separados por tema:
 
-- Requisitos: `docs/REQUIREMENTS.md`.
-- Diagramas: `docs/DIAGRAMS.md`.
-- Arquitetura: `docs/ARCHITECTURE.md`.
-- Padroes de projeto: `docs/DESIGN_PATTERNS.md`.
+- Requisitos: `docs/REQUISITOS.md`.
+- Diagramas: `docs/DIAGRAMAS.md`.
+- Arquitetura: `docs/ARQUITETURA.md`.
+- Padroes de projeto: `docs/PADROES_DO_PROJETO.md`.
 
 ## Escopo Validado
 
@@ -21,10 +21,10 @@ Documentos separados por tema:
 
 | Documento | Compatibilidade | Observacao |
 | --- | --- | --- |
-| `REQUIREMENTS.md` | Compativel | Requisitos implementados e pendentes refletem o estado atual do codigo |
-| `DIAGRAMS.md` | Compativel | Diagramas representam frontend, API Express e PostgreSQL atuais |
-| `ARCHITECTURE.md` | Compativel | Camadas, telas, dados, operacao e roadmap seguem a estrutura do projeto |
-| `DESIGN_PATTERNS.md` | Compativel | Padroes listados aparecem nos arquivos atuais do frontend e backend |
+| `REQUISITOS.md` | Compativel | Requisitos implementados e pendentes refletem o estado atual do codigo |
+| `DIAGRAMAS.md` | Compativel | Diagramas representam frontend, API Express e PostgreSQL atuais |
+| `ARQUITETURA.md` | Compativel | Camadas, telas, dados, operacao e roadmap seguem a estrutura do projeto |
+| `PADROES_DO_PROJETO.md` | Compativel | Padroes listados aparecem nos arquivos atuais do frontend e backend |
 
 ## Seguranca Confirmada
 
