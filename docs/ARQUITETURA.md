@@ -1,8 +1,13 @@
-# MedHora - Arquitetura Web e Mobile
+# MedHora - Arquitetura
 
-Este documento define a base tecnica para evoluir o MedHora como app seguro, acessivel e multiplataforma para idosos e cuidadores.
+Este documento descreve a arquitetura tecnica do MedHora como app web/mobile seguro, acessivel e multiplataforma para idosos e cuidadores.
 
-Documento complementar: `docs/SYSTEM_COMPATIBILITY.md` confirma a compatibilidade entre requisitos, diagramas, arquitetura, padroes de projeto e o codigo implementado.
+Documentos relacionados:
+
+- `docs/REQUISITOS.md`: requisitos funcionais e nao funcionais.
+- `docs/DIAGRAMAS.md`: diagramas de arquitetura, componentes, autenticacao e dados.
+- `docs/PADROES_DO_PROJETO.md`: padroes de projeto e organizacao usados no codigo.
+- `docs/COMPATIBILIDADE_DO_SISTEMA_COM_A_DOCUMENTACAO.md`: compatibilidade entre documentacao e sistema implementado.
 
 ## Objetivo
 
@@ -16,11 +21,15 @@ Principios do projeto:
 - A interface deve priorizar clareza, contraste, botoes grandes e poucos passos.
 - Web e mobile devem compartilhar regras de negocio e modelos de dados.
 
-## Camadas
+## Visao Geral
 
-### Frontend
+Estado atual:
 
-Estado atual: React + Vite como PWA.
+- Frontend: React + Vite como PWA.
+- Backend: Express em `server/index.js`.
+- Banco de dados: PostgreSQL com schema `medhora_app`.
+- Integracao HTTP centralizada em `src/services/api.js`.
+- Seguranca basica: CORS por ambiente, senha com hash bcrypt e sessoes persistidas no PostgreSQL.
 
 Direcao recomendada:
 
@@ -28,6 +37,20 @@ Direcao recomendada:
 - Reaproveitar regras, textos e componentes ao migrar ou expandir para Expo/React Native.
 - Concentrar chamadas HTTP em `src/services/api.js`.
 - Evitar regra de permissao critica apenas no cliente.
+- Evoluir backend modularmente quando as rotas crescerem.
+
+## Camadas
+
+| Camada | Responsabilidade | Arquivos principais |
+| --- | --- | --- |
+| Interface | Telas, formularios, navegacao e feedback visual | `src/pages/`, `src/components/` |
+| Estado do cliente | Usuario autenticado e medicamentos carregados | `src/context/AuthContext.jsx`, `src/context/MedicationContext.jsx` |
+| Cliente HTTP | Contrato entre frontend e backend | `src/services/api.js` |
+| API | Rotas, autenticacao, autorizacao e validacoes | `server/index.js` |
+| Banco | Pool PostgreSQL e transacoes | `server/db.js` |
+| Schema | Tabelas, indices e constraints | `server/schema.sql` |
+
+### Frontend
 
 Responsabilidades:
 
@@ -37,8 +60,6 @@ Responsabilidades:
 - Notificacoes locais quando suportadas pelo navegador/dispositivo.
 
 ### Backend
-
-Estado atual: Express em `server/index.js`.
 
 Responsabilidades:
 
@@ -51,8 +72,6 @@ Responsabilidades:
 - Ponto unico para futuras integracoes de notificacao, auditoria e mobile.
 
 ### Banco de Dados
-
-Estado atual: PostgreSQL com schema `medhora_app`.
 
 Responsabilidades:
 
@@ -93,7 +112,12 @@ src/
     api.js
   utils/
 docs/
+  README.md
+  REQUIREMENTS.md
+  DIAGRAMS.md
   ARCHITECTURE.md
+  DESIGN_PATTERNS.md
+  SYSTEM_COMPATIBILITY.md
 ```
 
 O backend ainda pode continuar em um unico arquivo durante a fase inicial. A separacao por modulos deve acontecer quando as rotas crescerem, para reduzir risco de regressao.
@@ -171,6 +195,7 @@ Campos principais:
 - `amount`: quantidade.
 - `unit`: unidade.
 - `time`: horario.
+- `start_date`, `end_date`: periodo ativo.
 - `created_at`: data de cadastro.
 
 ### medication_intake
@@ -243,55 +268,6 @@ Acoes que devem gerar log:
 - Cadastro, remocao e alteracao de medicamento.
 - Marcacao de medicamento como tomado.
 - Logout e expiracao de sessao.
-
-## Regras de Seguranca
-
-### Autenticacao
-
-Estado atual:
-
-- Senhas novas usam bcrypt.
-- Senhas legadas em texto puro sao migradas para hash no primeiro login.
-- Sessao usa token gerado no servidor e enviado no header `x-medhora-token`.
-- Sessao do backend e persistida em `app_sessions` no PostgreSQL.
-
-Proximos reforcos:
-
-- Expirar sessoes por tempo.
-- Criar rotina de limpeza periodica para sessoes expiradas.
-- Exigir senha mais forte do que PIN numerico em contas reais.
-- Adicionar limite de tentativas de login por CPF/IP.
-
-### Autorizacao
-
-Regras obrigatorias:
-
-- Usuario acessa os proprios dados.
-- Cuidador acessa dados do idoso apenas quando houver vinculo.
-- Idoso consegue remover cuidador vinculado.
-- Dados sensiveis nunca devem ser retornados sem necessidade.
-
-### Validacao
-
-Validar no cliente para orientar o usuario, mas validar no servidor para proteger o sistema.
-
-Campos minimos:
-
-- CPF com 11 digitos.
-- Senha com politica definida.
-- Perfil limitado a `idoso` ou `cuidador`.
-- Horario no formato `HH:mm`.
-- Dose numerica positiva.
-- Unidade em lista permitida.
-
-### Privacidade
-
-Regras:
-
-- Notificacoes devem evitar detalhes sensiveis na tela bloqueada.
-- O cuidador so ve idosos vinculados.
-- O idoso deve entender quem pode ver seus dados.
-- Backups devem ter acesso restrito.
 
 ## Fluxo Cuidador e Idoso
 
