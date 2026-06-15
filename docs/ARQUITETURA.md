@@ -113,11 +113,11 @@ src/
   utils/
 docs/
   README.md
-  REQUIREMENTS.md
-  DIAGRAMS.md
-  ARCHITECTURE.md
-  DESIGN_PATTERNS.md
-  SYSTEM_COMPATIBILITY.md
+  REQUISITOS  .md
+  DIAGRAMAS.md
+  ARQUITETURA
+  PADROES_DO_PROJETO.md
+  COMPATIBILIDADE_DO_SISTEMA_COM_A_DOCUMENTACAO.md
 ```
 
 O backend ainda pode continuar em um unico arquivo durante a fase inicial. A separacao por modulos deve acontecer quando as rotas crescerem, para reduzir risco de regressao.

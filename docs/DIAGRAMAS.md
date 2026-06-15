@@ -13,6 +13,7 @@ flowchart LR
   Express --> Rules[Validacoes e Regras]
   Express --> Db[server/db.js]
   Db --> Pg[(PostgreSQL medhora_app)]
+  Anvisa[Medicamentos ANVISA] --> Pg
 ```
 
 ## Diagrama de Componentes
